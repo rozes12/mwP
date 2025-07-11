@@ -1,0 +1,245 @@
+import React, { useState, useEffect } from 'react';
+// Firebase imports - standard boilerplate, even if not directly used for persistence in this app
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+
+function App() {
+    const [prompt, setPrompt] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [results, setResults] = useState({});
+    const [selectedModels, setSelectedModels] = useState({
+        'gemini-2.5-flash-preview-04-17': true, // Directly implementable with current API
+        'gemini-pro': false, // Placeholder for future integration
+        'other-gemini-model': false // Placeholder for future integration
+    });
+    const [authReady, setAuthReady] = useState(false);
+    const [userId, setUserId] = useState(null);
+
+    // Firebase Init and Auth Listener
+    useEffect(() => {
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+        if (firebaseConfig) {
+            try {
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (!user) {
+                        try {
+                            if (typeof __initial_auth_token !== 'undefined') {
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        } catch (error) {
+                            console.error("Firebase authentication failed:", error);
+                        }
+                    }
+                    setUserId(auth.currentUser?.uid || crypto.randomUUID());
+                    setAuthReady(true);
+                });
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+            }
+        } else {
+            console.warn("Firebase config not available. Running without Firebase.");
+            setAuthReady(true); // Still allow app to run if Firebase config is missing
+            setUserId(crypto.randomUUID()); // Generate a random ID if no auth
+        }
+    }, []); // Run once on component mount
+
+    /**
+     * Handles changes to the prompt input textarea.
+     * @param {Object} e - The event object from the textarea.
+     */
+    const handlePromptChange = (e) => {
+        setPrompt(e.target.value);
+    };
+
+    /**
+     * Toggles the selection state of a given model.
+     * @param {string} modelName - The name of the model to toggle.
+     */
+    const handleModelToggle = (modelName) => {
+        setSelectedModels(prev => ({
+            ...prev,
+            [modelName]: !prev[modelName]
+        }));
+    };
+
+    /**
+     * Runs the prompt against the selected models.
+     * Makes API calls and updates the results state.
+     */
+    const runPrompt = async () => {
+        if (!prompt.trim()) {
+            setResults({ error: 'Please enter a prompt.' });
+            return;
+        }
+
+        if (!authReady) {
+            setResults({ error: 'Authentication not ready. Please wait.' });
+            return;
+        }
+
+        setLoading(true);
+        setResults({}); // Clear previous results
+
+        const newResults = {};
+        // API key will be automatically provided by Canvas runtime
+        const apiKey = ""; 
+
+        // Model: Gemini 2.5 Flash
+        if (selectedModels['gemini-2.5-flash-preview-04-17']) {
+            try {
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${apiKey}`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    newResults['gemini-2.5-flash-preview-04-17'] = result.candidates[0].content.parts[0].text;
+                } else {
+                    newResults['gemini-2.5-flash-preview-04-17'] = 'No response or unexpected format.';
+                    console.error('Gemini 2.5 Flash API response error:', result);
+                }
+            } catch (error) {
+                newResults['gemini-2.5-flash-preview-04-17'] = `Error: ${error.message}`;
+                console.error('Error calling Gemini 2.5 Flash API:', error);
+            }
+        }
+
+        // Placeholder for Gemini Pro
+        if (selectedModels['gemini-pro']) {
+            newResults['gemini-pro'] = 'Gemini Pro API integration not yet available in this demo. (Requires specific API endpoint/SDK)';
+        }
+
+        // Placeholder for Other Gemini Model
+        if (selectedModels['other-gemini-model']) {
+            newResults['other-gemini-model'] = 'Other Gemini Model API integration not yet available in this demo. (Requires specific API endpoint/SDK)';
+        }
+
+        setResults(newResults);
+        setLoading(false);
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-100 flex flex-col items-center p-4 sm:p-6 md:p-8 font-sans">
+            {/* Tailwind CSS CDN */}
+            <script src="https://cdn.tailwindcss.com"></script>
+            {/* Inter Font */}
+            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+            {/* Custom Styles for scrollable content */}
+            <style>
+                {`
+                body {
+                    font-family: 'Inter', sans-serif;
+                }
+                .scrollable-content {
+                    max-height: 300px; /* Adjust as needed for result display */
+                    overflow-y: auto;
+                    white-space: pre-wrap; /* Preserve whitespace and wrap text */
+                    word-break: break-word; /* Break long words */
+                }
+                `}
+            </style>
+
+            <div className="w-full max-w-4xl bg-white rounded-lg shadow-xl p-6 sm:p-8 md:p-10 mb-8">
+                <h1 className="text-3xl sm:text-4xl font-bold text-center text-gray-800 mb-6">
+                    Multi-Model Prompt Runner
+                </h1>
+
+                {/* Display User ID (for multi-user app context) */}
+                {userId && (
+                    <div className="text-sm text-gray-600 text-center mb-4">
+                        User ID: <span className="font-mono bg-gray-200 px-2 py-1 rounded-md">{userId}</span>
+                    </div>
+                )}
+
+                <div className="mb-6">
+                    <label htmlFor="prompt-input" className="block text-gray-700 text-lg font-semibold mb-2">
+                        Enter your prompt:
+                    </label>
+                    <textarea
+                        id="prompt-input"
+                        className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition duration-200 ease-in-out h-32 resize-y"
+                        placeholder="e.g., Explain quantum entanglement in simple terms."
+                        value={prompt}
+                        onChange={handlePromptChange}
+                    ></textarea>
+                </div>
+
+                <div className="mb-6">
+                    <label className="block text-gray-700 text-lg font-semibold mb-3">
+                        Select Models:
+                    </label>
+                    <div className="flex flex-wrap gap-4">
+                        {Object.keys(selectedModels).map(modelName => (
+                            <div key={modelName} className="flex items-center">
+                                <input
+                                    type="checkbox"
+                                    id={modelName}
+                                    checked={selectedModels[modelName]}
+                                    onChange={() => handleModelToggle(modelName)}
+                                    className="form-checkbox h-5 w-5 text-blue-600 rounded-md transition duration-150 ease-in-out cursor-pointer"
+                                />
+                                <label htmlFor={modelName} className="ml-2 text-gray-700 text-base cursor-pointer">
+                                    {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                    {modelName === 'gemini-2.5-flash-preview-04-17' && ' (Active)'}
+                                    {(modelName === 'gemini-pro' || modelName === 'other-gemini-model') && ' (Placeholder)'}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <button
+                    onClick={runPrompt}
+                    disabled={loading || !authReady}
+                    className="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {loading ? 'Running...' : 'Run Prompt Across Models'}
+                </button>
+
+                {loading && (
+                    <div className="text-center mt-6">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 inline-block"></div>
+                        <p className="text-gray-600 mt-2">Generating responses...</p>
+                    </div>
+                )}
+
+                {/* Display Results */}
+                {Object.keys(results).length > 0 && (
+                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {Object.entries(results).map(([modelName, output]) => (
+                            <div key={modelName} className="bg-gray-50 p-6 rounded-lg shadow-md border border-gray-200">
+                                <h3 className="text-xl font-semibold text-gray-800 mb-3">
+                                    {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Output:
+                                </h3>
+                                {output.startsWith('Please enter a prompt.') || output.startsWith('Authentication not ready.') ? (
+                                    <p className="text-red-600 font-medium">{output}</p>
+                                ) : (
+                                    <div className="bg-white p-4 rounded-md border border-gray-200 scrollable-content">
+                                        <p className="text-gray-800 text-sm">{output}</p>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+export default App;

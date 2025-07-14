@@ -15,22 +15,6 @@ app.use(cors({
 }));
 app.use(express.json()); // Parse JSON request bodies
 
-// // Initialize Gemini models with API key from environment variable
-// const API_KEY = process.env.GEMINI_API_KEY;
-// if (!API_KEY) {
-//     console.error("GEMINI_API_KEY not found in environment variables. Please set it in your .env file.");
-//     process.exit(1); // Exit if API key is not found
-// }
-
-// const genAI = new GoogleGenerativeAI(API_KEY);
-
-// // Define your three Gemini models (ensure these are available and correctly spelled)
-// const MODELS = {
-//     'gemini-1.5-flash-preview-04-17': genAI.getGenerativeModel({ model: 'gemini-1.5-flash-preview-04-17' }),
-//     'gemini-pro': genAI.getGenerativeModel({ model: 'gemini-pro' }),
-//     // Add other models here once they are officially supported or you know their identifiers
-//     // 'gemini-some-other-model': genAI.getGenerativeModel({ model: 'gemini-some-other-model' })
-// };
 
 
 // Initialize Gemini models with API key from environment variable
@@ -51,8 +35,8 @@ const MODELS = {
     'gemini-2.5-pro': genAI.getGenerativeModel({ model: 'gemini-2.5-pro' }),
 
     // For your third model, choose another current, stable one based on your need:
-    // Example: another Flash variant, or a specific version like 'gemini-1.5-flash-002'
-    'gemini-1.5-flash': genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }), // Keeping 1.5 Flash as an option
+    'gemini-1.5-flash': genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }),
+    
 };
 
 

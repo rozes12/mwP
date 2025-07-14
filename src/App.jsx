@@ -1,36 +1,849 @@
+// // plain css normal 1st one 
+// import React, { useState } from 'react';
+// // Removed all Firebase imports
 
-    
-    import React, { useState } from 'react';
-// Removed all Firebase imports
+// function App() {
+//     const [prompt, setPrompt] = useState('');
+//     const [loading, setLoading] = useState(false);
+//     const [results, setResults] = useState({});
+//     const [selectedModels, setSelectedModels] = useState({
+//         'gemini-2.5-flash': true, // Directly implementable with current API
+//         'gemini-2.5-pro': true, // Now active
+//         'gemini-1.5-flash': true // Placeholder for future integration
+//     });
+
+//     // Define your backend URL.
+//     // In development, this will be http://localhost:3001 (or whatever port your backend runs on).
+//     // In production, this will be the URL of your deployed backend service.
+//     const BACKEND_BASE_URL = 'http://localhost:3001'; // IMPORTANT: Match your backend server's port
+
+
+//     /**
+//      * Handles changes to the prompt input textarea.
+//      * @param {Object} e - The event object from the textarea.
+//      */
+//     const handlePromptChange = (e) => {
+//         setPrompt(e.target.value);
+//     };
+
+//     /**
+//      * Toggles the selection state of a given model.
+//      * @param {string} modelName - The name of the model to toggle.
+//      */
+//     const handleModelToggle = (modelName) => {
+//         setSelectedModels(prev => ({
+//             ...prev,
+//             [modelName]: !prev[modelName]
+//         }));
+//     };
+
+//     /**
+//      * Generic function to call your backend API.
+//      * @param {string} endpoint - The backend endpoint (e.g., '/generate-responses', '/summarize').
+//      * @param {Object} payload - The data to send to the backend.
+//      * @returns {Promise<Object>} The JSON response from the backend.
+//      */
+//     const callBackendApi = async (endpoint, payload) => {
+//         try {
+//             const response = await fetch(`${BACKEND_BASE_URL}${endpoint}`, {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json' },
+//                 body: JSON.stringify(payload)
+//             });
+
+//             if (!response.ok) {
+//                 const errorData = await response.json();
+//                 throw new Error(errorData.error || `Backend HTTP error! Status: ${response.status}`);
+//             }
+//             return await response.json();
+//         } catch (error) {
+//             console.error(`Error calling backend endpoint ${endpoint}:`, error);
+//             throw new Error(`Failed to communicate with backend: ${error.message}`);
+//         }
+//     };
+
+
+//     /**
+//      * Runs the prompt against the selected models via the backend.
+//      * Makes API calls and updates the results state.
+//      */
+//     const runPrompt = async () => {
+//         if (!prompt.trim()) {
+//             setResults({ error: 'Please enter a prompt.' });
+//             return;
+//         }
+
+//         setLoading(true);
+//         setResults({}); // Clear previous results
+
+//         try {
+//             const data = await callBackendApi('/generate-responses', { prompt, selectedModels });
+//             setResults(data); // Backend directly returns the map of model outputs
+//         } catch (error) {
+//             setResults({ error: error.message });
+//         } finally {
+//             setLoading(false);
+//         }
+//     };
+
+//     /**
+//      * Summarizes the current prompt using Gemini 2.5 Flash via the backend.
+//      */
+//     const summarizeText = async () => {
+//         if (!prompt.trim()) {
+//             setResults({ error: 'Please enter text to summarize.' });
+//             return;
+//         }
+//         setLoading(true);
+//         setResults({});
+//         try {
+//             const data = await callBackendApi('/summarize', { prompt });
+//             setResults({ 'Gemini API - Summary': data.summary });
+//         } catch (error) {
+//             setResults({ error: error.message });
+//         } finally {
+//             setLoading(false);
+//         }
+//     };
+
+//     /**
+//      * Expands on the current prompt using Gemini 2.5 Flash via the backend.
+//      */
+//     const expandText = async () => {
+//         if (!prompt.trim()) {
+//             setResults({ error: 'Please enter text to expand.' });
+//             return;
+//         }
+//         setLoading(true);
+//         setResults({});
+//         try {
+//             const data = await callBackendApi('/expand', { prompt });
+//             setResults({ 'Gemini API - Expanded Text': data.expandedText });
+//         } catch (error) {
+//             setResults({ error: error.message });
+//         } finally {
+//             setLoading(false);
+//         }
+//     };
+
+//     /**
+//      * Extracts keywords from the current prompt using Gemini 2.5 Flash via the backend.
+//      */
+//     const extractKeywords = async () => {
+//         if (!prompt.trim()) {
+//             setResults({ error: 'Please enter text to extract keywords from.' });
+//             return;
+//         }
+//         setLoading(true);
+//         setResults({});
+//         try {
+//             const data = await callBackendApi('/extract-keywords', { prompt });
+//             setResults({ 'Gemini API - Keywords': data.keywords });
+//         } catch (error) {
+//             setResults({ error: error.message });
+//         } finally {
+//             setLoading(false);
+//         }
+//     };
+
+//     return (
+//         <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 md:p-8">
+//             {/* Main container wrapper for responsive centering */}
+//             <div className="container">
+//                 <h1>Multi-Model Prompt Runner</h1>
+
+//                 <div className="input-group">
+//                     <label htmlFor="prompt-input">
+//                         Enter your prompt:
+//                     </label>
+//                     <textarea
+//                         id="prompt-input"
+//                         placeholder="e.g., Explain quantum entanglement in simple terms."
+//                         value={prompt}
+//                         onChange={handlePromptChange}
+//                     ></textarea>
+//                 </div>
+
+//                 <div className="model-selection">
+//                     <label>
+//                         Select Models:
+//                     </label>
+//                     <div className="model-options">
+//                         {Object.keys(selectedModels).map(modelName => (
+//                             <div key={modelName} className="model-option">
+//                                 <input
+//                                     type="checkbox"
+//                                     id={modelName}
+//                                     checked={selectedModels[modelName]}
+//                                     onChange={() => handleModelToggle(modelName)}
+//                                 />
+//                                 <label htmlFor={modelName}>
+//                                     {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+//                                     {modelName === 'gemini-2.5-flash' && ' (Active)'}
+//                                     {modelName === 'gemini-2.5-pro' && ' (Active)'} {/* Label as active */}
+//                                     {modelName === 'gemini-1.5-flash' && ' (Active)'}
+//                                 </label>
+//                             </div>
+//                         ))}
+//                     </div>
+//                 </div>
+
+//                 <div className="button-grid">
+//                     <button
+//                         onClick={runPrompt}
+//                         disabled={loading}
+//                         className="btn btn-blue"
+//                     >
+//                         {loading ? 'Running...' : 'Run Prompt'}
+//                     </button>
+//                     <button
+//                         onClick={summarizeText}
+//                         disabled={loading}
+//                         className="btn btn-green"
+//                     >
+//                         {loading ? 'Summarizing...' : '✨ Summarize Text'}
+//                     </button>
+//                     <button
+//                         onClick={expandText}
+//                         disabled={loading}
+//                         className="btn btn-purple"
+//                     >
+//                         {loading ? 'Expanding...' : '✨ Expand Text'}
+//                     </button>
+//                     <button
+//                         onClick={extractKeywords}
+//                         disabled={loading}
+//                         className="btn btn-yellow"
+//                     >
+//                         {loading ? 'Extracting...' : '✨ Extract Keywords'}
+//                     </button>
+//                 </div>
+
+//                 {loading && (
+//                     <div className="loading-container">
+//                         <div className="spinner"></div>
+//                         <p className="loading-text">Generating responses...</p>
+//                     </div>
+//                 )}
+
+//                 {/* Display Results */}
+//                 {Object.keys(results).length > 0 && (
+//                     <div className="results-grid">
+//                         {Object.entries(results).map(([modelName, output]) => (
+//                             <div key={modelName} className="result-card">
+//                                 <h3>
+//                                     {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Output:
+//                                 </h3>
+//                                 {output.startsWith('Please enter a prompt.') || output.startsWith('API Key not configured.') || output.startsWith('API Error:') || output.startsWith('Failed to communicate with backend:') ? (
+//                                     <p className="error-message">{output}</p>
+//                                 ) : (
+//                                     <div className="result-content">
+//                                         <p>{output}</p>
+//                                     </div>
+//                                 )}
+//                             </div>
+//                         ))}
+//                     </div>
+//                 )}
+//             </div>
+//         </div>
+//     );
+// }
+
+// export default App;
+// // plain css normal 1st one 
+
+
+// // gradient blue
+// // frontend/src/App.js
+// import React, { useState } from 'react';
+// // Import your main CSS file where Tailwind directives are.
+// // If it's src/index.css, import './index.css';
+// // If it's src/App.css, import './App.css';
+// import './index.css'; // Assuming Tailwind directives are in index.css
+
+// // You might not need this if you defined your custom fonts in tailwind.config.js
+// // and imported them in public/index.html
+// // @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto+Mono:wght@400;500&display=swap');
+
+
+// function App() {
+//     const [prompt, setPrompt] = useState('');
+//     const [loading, setLoading] = useState(false);
+//     const [results, setResults] = useState({});
+
+//     // These model names should match your backend configuration
+//     const [selectedModels, setSelectedModels] = useState({
+//         'gemini-2.5-flash': true,
+//         'gemini-2.5-pro': false,
+//         'gemini-1.5-pro': false
+//     });
+
+//     const BACKEND_BASE_URL = 'http://localhost:3001';
+
+//     const handlePromptChange = (e) => {
+//         setPrompt(e.target.value);
+//     };
+
+//     const handleModelToggle = (modelName) => {
+//         setSelectedModels(prev => ({
+//             ...prev,
+//             [modelName]: !prev[modelName]
+//         }));
+//     };
+
+//     const callBackendApi = async (endpoint, payload) => {
+//         try {
+//             const response = await fetch(`${BACKEND_BASE_URL}${endpoint}`, {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json' },
+//                 body: JSON.stringify(payload)
+//             });
+
+//             if (!response.ok) {
+//                 const errorData = await response.json();
+//                 throw new Error(errorData.error || `Backend HTTP error! Status: ${response.status}`);
+//             }
+//             return await response.json();
+//         } catch (error) {
+//             console.error(`Error calling backend endpoint ${endpoint}:`, error);
+//             throw new Error(`Failed to communicate with backend: ${error.message}`);
+//         }
+//     };
+
+//     const runPrompt = async () => {
+//         if (!prompt.trim()) {
+//             setResults({ error: 'Please enter a prompt.' });
+//             return;
+//         }
+
+//         setLoading(true);
+//         setResults({});
+
+//         try {
+//             const data = await callBackendApi('/generate-responses', { prompt, selectedModels });
+//             setResults(data);
+//         } catch (error) {
+//             setResults({ error: error.message });
+//         } finally {
+//             setLoading(false);
+//         }
+//     };
+
+//     const summarizeText = async () => {
+//         if (!prompt.trim()) {
+//             setResults({ error: 'Please enter text to summarize.' });
+//             return;
+//         }
+//         setLoading(true);
+//         setResults({});
+//         try {
+//             const data = await callBackendApi('/summarize', { prompt });
+//             setResults({ 'Gemini API - Summary': data.summary });
+//         } catch (error) {
+//             setResults({ error: error.message });
+//         } finally {
+//             setLoading(false);
+//         }
+//     };
+
+//     const expandText = async () => {
+//         if (!prompt.trim()) {
+//             setResults({ error: 'Please enter text to expand.' });
+//             return;
+//         }
+//         setLoading(true);
+//         setResults({});
+//         try {
+//             const data = await callBackendApi('/expand', { prompt });
+//             setResults({ 'Gemini API - Expanded Text': data.expandedText });
+//         } catch (error) {
+//             setResults({ error: error.message });
+//         } finally {
+//             setLoading(false);
+//         }
+//     };
+
+//     const extractKeywords = async () => {
+//         if (!prompt.trim()) {
+//             setResults({ error: 'Please enter text to extract keywords from.' });
+//             return;
+//         }
+//         setLoading(true);
+//         setResults({});
+//         try {
+//             const data = await callBackendApi('/extract-keywords', { prompt });
+//             setResults({ 'Gemini API - Keywords': data.keywords });
+//         } catch (error) {
+//             setResults({ error: error.message });
+//         } finally {
+//             setLoading(false);
+//         }
+//     };
+
+//     return (
+//         // MAIN APP CONTAINER WITH FUNKY BACKGROUND
+//         // min-h-screen: Ensures it takes at least the full viewport height
+//         // flex flex-col items-center: Centers content horizontally, stacks vertically
+//         // py-8 px-4 sm:px-6 lg:px-8: Responsive padding
+//         // bg-swirling-nebula bg-cover bg-fixed: Custom gradient background from tailwind.config.js
+//         // text-light-text font-sans: Global text color and font
+//         <div className="min-h-screen flex flex-col items-center py-8 px-4 sm:px-6 lg:px-8
+//                         bg-swirling-nebula bg-cover bg-fixed
+//                         text-light-text font-sans">
+//             {/* Content Wrapper */}
+//             {/* max-w-4xl w-full: Constrains width, but allows full width on small screens
+//                 space-y-8: Adds vertical spacing between direct children
+//                 p-6: Padding
+//                 bg-dark-background/80: Custom color with 80% opacity
+//                 backdrop-blur-sm: Frosted glass effect (modern CSS)
+//                 rounded-xl: Large rounded corners
+//                 shadow-2xl: Large shadow
+//                 border border-funky-purple/30: Subtle border with custom color and opacity
+//             */}
+//             <div className="max-w-4xl w-full space-y-8 p-6 bg-dark-background/80 backdrop-blur-sm rounded-xl shadow-2xl border border-funky-purple/30">
+
+//                 {/* Main Heading */}
+//                 {/* text-4xl sm:text-5xl: Responsive font size
+//                     font-extrabold: Very bold font weight
+//                     text-center: Center aligned text
+//                     text-funky-cyan: Custom color
+//                     mb-8: Margin bottom
+//                     tracking-wide: Wider letter spacing
+//                     drop-shadow-lg: Large text shadow
+//                 */}
+//                 <h1 className="text-4xl sm:text-5xl font-extrabold text-center text-funky-cyan mb-8 tracking-wide drop-shadow-lg">
+//                     🔮 Gemini Fun-House AI 🚀
+//                 </h1>
+
+//                 {/* Prompt Section Card */}
+//                 {/* p-6 md:p-8: Responsive padding
+//                     bg-dark-background/60: Custom color with 60% opacity
+//                     rounded-lg shadow-xl border border-funky-pink/20: Styling for the card
+//                 */}
+//                 <div className="p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20">
+//                     <div className="mb-6">
+//                         <label htmlFor="prompt-input" className="block text-lg font-medium text-light-text mb-2">
+//                             Type your wildest ideas:
+//                         </label>
+//                         <textarea
+//                             id="prompt-input"
+//                             rows="6"
+//                             placeholder="e.g., Describe a futuristic city powered by sentient plants..."
+//                             value={prompt}
+//                             onChange={handlePromptChange}
+//                             // w-full: Full width
+//                             // p-4: Padding
+//                             // border border-funky-purple-300: Border color
+//                             // rounded-lg shadow-inner: Rounded corners, inner shadow
+//                             // bg-dark-background/50 text-light-text placeholder-gray-400: Colors for input
+//                             // focus:outline-none focus:ring-2 focus:ring-funky-cyan: Focus styles (removes default outline, adds custom ring)
+//                             // transition-all duration-300 resize-y: Smooth transitions, vertical resize handle
+//                             className="w-full p-4 border border-funky-purple-300 rounded-lg shadow-inner bg-dark-background/50 text-light-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-funky-cyan transition-all duration-300 resize-y"
+//                         ></textarea>
+//                     </div>
+
+//                     {/* Model Selection */}
+//                     <div className="mb-8">
+//                         <label className="block text-lg font-medium text-light-text mb-3">
+//                             Choose your AI companions:
+//                         </label>
+//                         {/* grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3: Responsive grid layout */}
+//                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+//                             {Object.keys(selectedModels).map(modelName => (
+//                                 // flex items-center: Aligns checkbox and label
+//                                 // p-3 rounded-md bg-dark-background/70 border border-funky-orange/20 shadow-sm: Styling for each item
+//                                 // cursor-pointer hover:bg-dark-background/90 transition-all duration-200: Hover effects
+//                                 <div key={modelName} className="flex items-center p-3 rounded-md bg-dark-background/70 border border-funky-orange/20 shadow-sm cursor-pointer hover:bg-dark-background/90 transition-all duration-200">
+//                                     {/* h-5 w-5: Size of checkbox
+//                                         text-funky-cyan: Accent color for checkbox checkmark
+//                                         rounded border-gray-600 focus:ring-funky-cyan bg-gray-700: Styling
+//                                     */}
+//                                     <input
+//                                         type="checkbox"
+//                                         id={modelName}
+//                                         checked={selectedModels[modelName]}
+//                                         onChange={() => handleModelToggle(modelName)}
+//                                         className="h-5 w-5 text-funky-cyan rounded border-gray-600 focus:ring-funky-cyan bg-gray-700 cursor-pointer"
+//                                     />
+//                                     <label htmlFor={modelName} className="ml-3 block text-base font-medium text-light-text cursor-pointer">
+//                                         {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+//                                         {selectedModels[modelName] && <span className="ml-1 text-xs text-funky-cyan">(Active)</span>}
+//                                     </label>
+//                                 </div>
+//                             ))}
+//                         </div>
+//                     </div>
+
+//                     {/* Buttons */}
+//                     {/* grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4: Responsive button grid */}
+//                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+//                         <button
+//                             onClick={runPrompt}
+//                             disabled={loading}
+//                             // w-full: Full width
+//                             // py-3 px-6 rounded-lg font-bold text-lg text-white shadow-lg: Base button styles
+//                             // bg-gradient-to-r from-funky-purple to-funky-pink: Gradient background
+//                             // hover:from-funky-pink hover:to-funky-purple: Gradient direction reverse on hover
+//                             // transition-all duration-300 ease-in-out transform hover:-translate-y-1: Hover animation
+//                             // disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none: Disabled states
+//                             className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+//                                        bg-gradient-to-r from-funky-purple to-funky-pink shadow-lg
+//                                        hover:from-funky-pink hover:to-funky-purple
+//                                        transition-all duration-300 ease-in-out transform hover:-translate-y-1
+//                                        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+//                         >
+//                             {loading ? 'Summoning AIs...' : 'Unleash Multiverse Thoughts'}
+//                         </button>
+//                         <button
+//                             onClick={summarizeText}
+//                             disabled={loading}
+//                             className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+//                                        bg-gradient-to-r from-green-500 to-teal-500 shadow-lg
+//                                        hover:from-teal-500 hover:to-green-500
+//                                        transition-all duration-300 ease-in-out transform hover:-translate-y-1
+//                                        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+//                         >
+//                             {loading ? 'Digesting...' : '✨ Concise Summary'}
+//                         </button>
+//                         <button
+//                             onClick={expandText}
+//                             disabled={loading}
+//                             className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+//                                        bg-gradient-to-r from-blue-500 to-indigo-500 shadow-lg
+//                                        hover:from-indigo-500 hover:to-blue-500
+//                                        transition-all duration-300 ease-in-out transform hover:-translate-y-1
+//                                        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+//                         >
+//                             {loading ? 'Expanding...' : '✨ Elaborate Further'}
+//                         </button>
+//                         <button
+//                             onClick={extractKeywords}
+//                             disabled={loading}
+//                             className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+//                                        bg-gradient-to-r from-red-500 to-orange-500 shadow-lg
+//                                        hover:from-orange-500 hover:to-red-500
+//                                        transition-all duration-300 ease-in-out transform hover:-translate-y-1
+//                                        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+//                         >
+//                             {loading ? 'Scanning...' : '✨ Extract Core Concepts'}
+//                         </button>
+//                     </div>
+//                 </div>
+
+//                 {/* Loading Indicator */}
+//                 {loading && (
+//                     <div className="flex flex-col items-center justify-center p-12 bg-dark-background/70 rounded-xl shadow-xl text-funky-cyan">
+//                         {/* animate-spin-slow: Custom animation defined in tailwind.config.js */}
+//                         <div className="animate-spin-slow border-t-4 border-b-4 border-funky-pink w-16 h-16 rounded-full mb-4"></div>
+//                         <p className="text-xl font-semibold animate-pulse">Summoning cosmic wisdom...</p>
+//                     </div>
+//                 )}
+
+//                 {/* Results Display */}
+//                 {Object.keys(results).length > 0 && (
+//                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+//                         {Object.entries(results).map(([modelName, output]) => (
+//                             <div key={modelName} className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20 transform hover:scale-[1.01] transition-transform duration-200">
+//                                 <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
+//                                     {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Says:
+//                                 </h3>
+//                                 {output.startsWith('Please enter') || output.startsWith('API Error:') || output.startsWith('Failed to communicate with backend:') || output.startsWith('Error:') || output.startsWith('Model') ? (
+//                                     <p className="text-red-400 font-medium bg-red-900/30 p-4 rounded-md border border-red-700">Error: {output}</p>
+//                                 ) : (
+//                                     <div className="max-h-60 overflow-y-auto p-4 bg-dark-background/40 rounded-md border border-gray-700 text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
+//                                         <p>{output}</p>
+//                                     </div>
+//                                 )}
+//                             </div>
+//                         ))}
+//                     </div>
+//                 )}
+//             </div>
+//         </div>
+//     );
+// }
+
+// export default App;
+// // gradient blue
+
+
+
+
+// // frontend/src/App.js
+// import React, { useState } from 'react';
+// import './index.css'; // Or './App.css', depending on where your Tailwind directives are
+
+// function App() {
+//     const [prompt, setPrompt] = useState('');
+//     const [loading, setLoading] = useState(false);
+//     const [results, setResults] = useState({});
+
+//     const [selectedModels, setSelectedModels] = useState({
+//         'gemini-2.5-flash': true,
+//         'gemini-2.5-pro': false,
+//         'gemini-1.5-pro': false
+//     });
+
+//     const BACKEND_BASE_URL = 'http://localhost:3001';
+
+//     const handlePromptChange = (e) => {
+//         setPrompt(e.target.value);
+//     };
+
+//     const handleModelToggle = (modelName) => {
+//         setSelectedModels(prev => ({
+//             ...prev,
+//             [modelName]: !prev[modelName]
+//         }));
+//     };
+
+//     const callBackendApi = async (endpoint, payload) => {
+//         try {
+//             const response = await fetch(`${BACKEND_BASE_URL}${endpoint}`, {
+//                 method: 'POST',
+//                 headers: { 'Content-Type': 'application/json' },
+//                 body: JSON.stringify(payload)
+//             });
+
+//             if (!response.ok) {
+//                 const errorData = await response.json();
+//                 throw new Error(errorData.error || `Backend HTTP error! Status: ${response.status}`);
+//             }
+//             return await response.json();
+//         } catch (error) {
+//             console.error(`Error calling backend endpoint ${endpoint}:`, error);
+//             throw new Error(`Failed to communicate with backend: ${error.message}`);
+//         }
+//     };
+
+//     const runPrompt = async () => {
+//         if (!prompt.trim()) {
+//             setResults({ error: 'Please enter a prompt.' });
+//             return;
+//         }
+
+//         setLoading(true);
+//         setResults({});
+
+//         try {
+//             const data = await callBackendApi('/generate-responses', { prompt, selectedModels });
+//             setResults(data);
+//         } catch (error) {
+//             setResults({ error: error.message });
+//         } finally {
+//             setLoading(false);
+//         }
+//     };
+
+//     const summarizeText = async () => {
+//         if (!prompt.trim()) {
+//             setResults({ error: 'Please enter text to summarize.' });
+//             return;
+//         }
+//         setLoading(true);
+//         setResults({});
+//         try {
+//             const data = await callBackendApi('/summarize', { prompt });
+//             setResults({ 'Gemini API - Summary': data.summary });
+//         } catch (error) {
+//             setResults({ error: error.message });
+//         } finally {
+//             setLoading(false);
+//         }
+//     };
+
+//     const expandText = async () => {
+//         if (!prompt.trim()) {
+//             setResults({ error: 'Please enter text to expand.' });
+//             return;
+//         }
+//         setLoading(true);
+//         setResults({});
+//         try {
+//             const data = await callBackendApi('/expand', { prompt });
+//             setResults({ 'Gemini API - Expanded Text': data.expandedText });
+//         } catch (error) {
+//             setResults({ error: error.message });
+//         } finally {
+//             setLoading(false);
+//         }
+//     };
+
+//     const extractKeywords = async () => {
+//         if (!prompt.trim()) {
+//             setResults({ error: 'Please enter text to extract keywords from.' });
+//             return;
+//         }
+//         setLoading(true);
+//         setResults({});
+//         try {
+//             const data = await callBackendApi('/extract-keywords', { prompt });
+//             setResults({ 'Gemini API - Keywords': data.keywords });
+//         } catch (error) {
+//             setResults({ error: error.message });
+//         } finally {
+//             setLoading(false);
+//         }
+//     };
+
+//     return (
+//         // MAIN APP CONTAINER WITH ANIMATED RETRO SWIRL BACKGROUND
+//         <div className="min-h-screen flex flex-col items-center py-8 px-4 sm:px-6 lg:px-8
+//                         bg-retro-swirl-animated bg-repeat bg-fixed bg-cover
+//                         text-light-text font-sans">
+//             {/* Content Wrapper */}
+//             <div className="max-w-4xl w-full space-y-8 p-6 bg-dark-background/80 backdrop-blur-sm rounded-xl shadow-2xl border border-funky-purple/30">
+
+//                 <h1 className="text-4xl sm:text-5xl font-extrabold text-center text-funky-cyan mb-8 tracking-wide drop-shadow-lg">
+//                     🔮 Gemini Fun-House AI 🚀
+//                 </h1>
+
+//                 {/* Prompt Section Card */}
+//                 <div className="p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20">
+//                     <div className="mb-6">
+//                         <label htmlFor="prompt-input" className="block text-lg font-medium text-light-text mb-2">
+//                             Type your wildest ideas:
+//                         </label>
+//                         <textarea
+//                             id="prompt-input"
+//                             rows="6"
+//                             placeholder="e.g., Describe a futuristic city powered by sentient plants..."
+//                             value={prompt}
+//                             onChange={handlePromptChange}
+//                             className="w-full p-4 border border-funky-purple-300 rounded-lg shadow-inner bg-dark-background/50 text-light-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-funky-cyan transition-all duration-300 resize-y"
+//                         ></textarea>
+//                     </div>
+
+//                     {/* Model Selection */}
+//                     <div className="mb-8">
+//                         <label className="block text-lg font-medium text-light-text mb-3">
+//                             Choose your AI companions:
+//                         </label>
+//                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+//                             {Object.keys(selectedModels).map(modelName => (
+//                                 <div key={modelName} className="flex items-center p-3 rounded-md bg-dark-background/70 border border-funky-orange/20 shadow-sm cursor-pointer hover:bg-dark-background/90 transition-all duration-200">
+//                                     <input
+//                                         type="checkbox"
+//                                         id={modelName}
+//                                         checked={selectedModels[modelName]}
+//                                         onChange={() => handleModelToggle(modelName)}
+//                                         className="h-5 w-5 text-funky-cyan rounded border-gray-600 focus:ring-funky-cyan bg-gray-700 cursor-pointer"
+//                                     />
+//                                     <label htmlFor={modelName} className="ml-3 block text-base font-medium text-light-text cursor-pointer">
+//                                         {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+//                                         {selectedModels[modelName] && <span className="ml-1 text-xs text-funky-cyan">(Active)</span>}
+//                                     </label>
+//                                 </div>
+//                             ))}
+//                         </div>
+//                     </div>
+
+//                     {/* Buttons */}
+//                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+//                         <button
+//                             onClick={runPrompt}
+//                             disabled={loading}
+//                             className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+//                                        bg-gradient-to-r from-funky-purple to-funky-pink shadow-lg
+//                                        hover:from-funky-pink hover:to-funky-purple
+//                                        transition-all duration-300 ease-in-out transform hover:-translate-y-1
+//                                        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+//                         >
+//                             {loading ? 'Summoning AIs...' : 'Unleash Multiverse Thoughts'}
+//                         </button>
+//                         <button
+//                             onClick={summarizeText}
+//                             disabled={loading}
+//                             className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+//                                        bg-gradient-to-r from-green-500 to-teal-500 shadow-lg
+//                                        hover:from-teal-500 hover:to-green-500
+//                                        transition-all duration-300 ease-in-out transform hover:-translate-y-1
+//                                        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+//                         >
+//                             {loading ? 'Digesting...' : '✨ Concise Summary'}
+//                         </button>
+//                         <button
+//                             onClick={expandText}
+//                             disabled={loading}
+//                             className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+//                                        bg-gradient-to-r from-blue-500 to-indigo-500 shadow-lg
+//                                        hover:from-indigo-500 hover:to-blue-500
+//                                        transition-all duration-300 ease-in-out transform hover:-translate-y-1
+//                                        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+//                         >
+//                             {loading ? 'Expanding...' : '✨ Elaborate Further'}
+//                         </button>
+//                         <button
+//                             onClick={extractKeywords}
+//                             disabled={loading}
+//                             className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+//                                        bg-gradient-to-r from-red-500 to-orange-500 shadow-lg
+//                                        hover:from-orange-500 hover:to-red-500
+//                                        transition-all duration-300 ease-in-out transform hover:-translate-y-1
+//                                        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+//                         >
+//                             {loading ? 'Scanning...' : '✨ Extract Core Concepts'}
+//                         </button>
+//                     </div>
+//                 </div>
+
+//                 {/* Loading Indicator */}
+//                 {loading && (
+//                     <div className="flex flex-col items-center justify-center p-12 bg-dark-background/70 rounded-xl shadow-xl text-funky-cyan">
+//                         <div className="animate-spin-slow border-t-4 border-b-4 border-funky-pink w-16 h-16 rounded-full mb-4"></div>
+//                         <p className="text-xl font-semibold animate-pulse">Summoning cosmic wisdom...</p>
+//                     </div>
+//                 )}
+
+//                 {/* Results Display */}
+//                 {Object.keys(results).length > 0 && (
+//                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+//                         {Object.entries(results).map(([modelName, output]) => (
+//                             <div key={modelName} className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20 transform hover:scale-[1.01] transition-transform duration-200">
+//                                 <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
+//                                     {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Says:
+//                                 </h3>
+//                                 {output.startsWith('Please enter') || output.startsWith('API Error:') || output.startsWith('Failed to communicate with backend:') || output.startsWith('Error:') || output.startsWith('Model') ? (
+//                                     <p className="text-red-400 font-medium bg-red-900/30 p-4 rounded-md border border-red-700">Error: {output}</p>
+//                                 ) : (
+//                                     <div className="max-h-60 overflow-y-auto p-4 bg-dark-background/40 rounded-md border border-gray-700 text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
+//                                         <p>{output}</p>
+//                                     </div>
+//                                 )}
+//                             </div>
+//                         ))}
+//                     </div>
+//                 )}
+//             </div>
+//         </div>
+//     );
+// }
+
+// export default App;
+
+// frontend/src/App.js
+import React, { useState } from 'react';
+import './index.css'; // Or './App.css', depending on where your Tailwind directives are
 
 function App() {
     const [prompt, setPrompt] = useState('');
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState({});
+
     const [selectedModels, setSelectedModels] = useState({
-        'gemini-2.5-flash': true, // Directly implementable with current API
-        'gemini-2.5-pro': true, // Now active
-        'gemini-1.5-flash': true // Placeholder for future integration
+        'gemini-2.5-flash': false,
+        'gemini-2.5-pro': false,
+        'gemini-1.5-flash': true,
+        
     });
 
-    // Define your backend URL.
-    // In development, this will be http://localhost:3001 (or whatever port your backend runs on).
-    // In production, this will be the URL of your deployed backend service.
-    const BACKEND_BASE_URL = 'http://localhost:3001'; // IMPORTANT: Match your backend server's port
+    const BACKEND_BASE_URL = 'http://localhost:3001';
 
-
-    /**
-     * Handles changes to the prompt input textarea.
-     * @param {Object} e - The event object from the textarea.
-     */
     const handlePromptChange = (e) => {
         setPrompt(e.target.value);
     };
 
-    /**
-     * Toggles the selection state of a given model.
-     * @param {string} modelName - The name of the model to toggle.
-     */
     const handleModelToggle = (modelName) => {
         setSelectedModels(prev => ({
             ...prev,
@@ -38,12 +851,6 @@ function App() {
         }));
     };
 
-    /**
-     * Generic function to call your backend API.
-     * @param {string} endpoint - The backend endpoint (e.g., '/generate-responses', '/summarize').
-     * @param {Object} payload - The data to send to the backend.
-     * @returns {Promise<Object>} The JSON response from the backend.
-     */
     const callBackendApi = async (endpoint, payload) => {
         try {
             const response = await fetch(`${BACKEND_BASE_URL}${endpoint}`, {
@@ -63,11 +870,6 @@ function App() {
         }
     };
 
-
-    /**
-     * Runs the prompt against the selected models via the backend.
-     * Makes API calls and updates the results state.
-     */
     const runPrompt = async () => {
         if (!prompt.trim()) {
             setResults({ error: 'Please enter a prompt.' });
@@ -75,11 +877,11 @@ function App() {
         }
 
         setLoading(true);
-        setResults({}); // Clear previous results
+        setResults({});
 
         try {
             const data = await callBackendApi('/generate-responses', { prompt, selectedModels });
-            setResults(data); // Backend directly returns the map of model outputs
+            setResults(data);
         } catch (error) {
             setResults({ error: error.message });
         } finally {
@@ -87,9 +889,6 @@ function App() {
         }
     };
 
-    /**
-     * Summarizes the current prompt using Gemini 2.5 Flash via the backend.
-     */
     const summarizeText = async () => {
         if (!prompt.trim()) {
             setResults({ error: 'Please enter text to summarize.' });
@@ -107,9 +906,6 @@ function App() {
         }
     };
 
-    /**
-     * Expands on the current prompt using Gemini 2.5 Flash via the backend.
-     */
     const expandText = async () => {
         if (!prompt.trim()) {
             setResults({ error: 'Please enter text to expand.' });
@@ -127,9 +923,6 @@ function App() {
         }
     };
 
-    /**
-     * Extracts keywords from the current prompt using Gemini 2.5 Flash via the backend.
-     */
     const extractKeywords = async () => {
         if (!prompt.trim()) {
             setResults({ error: 'Please enter text to extract keywords from.' });
@@ -148,98 +941,130 @@ function App() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 md:p-8">
-            {/* Main container wrapper for responsive centering */}
-            <div className="container">
-                <h1>Multi-Model Prompt Runner</h1>
+        // MAIN APP CONTAINER WITH ANIMATED RETRO SWIRL BACKGROUND
+        <div className="min-h-screen flex flex-col items-center py-8 px-4 sm:px-6 lg:px-8
+                        bg-retro-swirl-animated bg-repeat bg-fixed bg-cover
+                        text-light-text font-sans">
+            {/* Content Wrapper */}
+            <div className="max-w-4xl w-full space-y-8 p-6 bg-dark-background/80 backdrop-blur-sm rounded-xl shadow-2xl border border-funky-purple/30">
 
-                <div className="input-group">
-                    <label htmlFor="prompt-input">
-                        Enter your prompt:
-                    </label>
-                    <textarea
-                        id="prompt-input"
-                        placeholder="e.g., Explain quantum entanglement in simple terms."
-                        value={prompt}
-                        onChange={handlePromptChange}
-                    ></textarea>
-                </div>
+                <h1 className="text-4xl sm:text-5xl font-extrabold text-center text-funky-cyan mb-8 tracking-wide drop-shadow-lg">
+                    🔮 Gemini Fun-House AI 🚀
+                </h1>
 
-                <div className="model-selection">
-                    <label>
-                        Select Models:
-                    </label>
-                    <div className="model-options">
-                        {Object.keys(selectedModels).map(modelName => (
-                            <div key={modelName} className="model-option">
-                                <input
-                                    type="checkbox"
-                                    id={modelName}
-                                    checked={selectedModels[modelName]}
-                                    onChange={() => handleModelToggle(modelName)}
-                                />
-                                <label htmlFor={modelName}>
-                                    {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                    {modelName === 'gemini-2.5-flash' && ' (Active)'}
-                                    {modelName === 'gemini-2.5-pro' && ' (Active)'} {/* Label as active */}
-                                    {modelName === 'gemini-1.5-flash' && ' (Active)'}
-                                </label>
-                            </div>
-                        ))}
+                {/* Prompt Section Card */}
+                <div className="p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20">
+                    <div className="mb-6">
+                        <label htmlFor="prompt-input" className="block text-lg font-medium text-light-text mb-2">
+                            Type your wildest ideas:
+                        </label>
+                        <textarea
+                            id="prompt-input"
+                            rows="6"
+                            placeholder="e.g., Describe a futuristic city powered by sentient plants..."
+                            value={prompt}
+                            onChange={handlePromptChange}
+                            className="w-full p-4 border border-funky-purple-300 rounded-lg shadow-inner bg-dark-background/50 text-light-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-funky-cyan transition-all duration-300 resize-y"
+                        ></textarea>
+                    </div>
+
+                    {/* Model Selection */}
+                    <div className="mb-8">
+                        <label className="block text-lg font-medium text-light-text mb-3">
+                            Choose your AI companions:
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {Object.keys(selectedModels).map(modelName => (
+                                <div key={modelName} className="flex items-center p-3 rounded-md bg-dark-background/70 border border-funky-orange/20 shadow-sm cursor-pointer hover:bg-dark-background/90 transition-all duration-200">
+                                    <input
+                                        type="checkbox"
+                                        id={modelName}
+                                        checked={selectedModels[modelName]}
+                                        onChange={() => handleModelToggle(modelName)}
+                                        className="h-5 w-5 text-funky-cyan rounded border-gray-600 focus:ring-funky-cyan bg-gray-700 cursor-pointer"
+                                    />
+                                    <label htmlFor={modelName} className="ml-3 block text-base font-medium text-light-text cursor-pointer">
+                                        {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                        {selectedModels[modelName] && <span className="ml-1 text-xs text-funky-cyan">(Active)</span>}
+                                    </label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Buttons */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+                        <button
+                            onClick={runPrompt}
+                            disabled={loading}
+                            className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+                                       bg-gradient-to-r from-funky-purple to-funky-pink shadow-lg
+                                       hover:from-funky-pink hover:to-funky-purple
+                                       transition-all duration-300 ease-in-out transform hover:-translate-y-1
+                                       disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                        >
+                            {loading ? 'Summoning AIs...' : 'Unleash Multiverse Thoughts'}
+                        </button>
+                        <button
+                            onClick={summarizeText}
+                            disabled={loading}
+                            className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+                                       bg-gradient-to-r from-green-500 to-teal-500 shadow-lg
+                                       hover:from-teal-500 hover:to-green-500
+                                       transition-all duration-300 ease-in-out transform hover:-translate-y-1
+                                       disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                        >
+                            {loading ? 'Digesting...' : '✨ Concise Summary'}
+                        </button>
+                        <button
+                            onClick={expandText}
+                            disabled={loading}
+                            className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+                                       bg-gradient-to-r from-blue-500 to-indigo-500 shadow-lg
+                                       hover:from-indigo-500 hover:to-blue-500
+                                       transition-all duration-300 ease-in-out transform hover:-translate-y-1
+                                       disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                        >
+                            {loading ? 'Expanding...' : '✨ Elaborate Further'}
+                        </button>
+                        <button
+                            onClick={extractKeywords}
+                            disabled={loading}
+                            className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+                                       bg-gradient-to-r from-red-500 to-orange-500 shadow-lg
+                                       hover:from-orange-500 hover:to-red-500
+                                       transition-all duration-300 ease-in-out transform hover:-translate-y-1
+                                       disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                        >
+                            {loading ? 'Scanning...' : '✨ Extract Core Concepts'}
+                        </button>
                     </div>
                 </div>
 
-                <div className="button-grid">
-                    <button
-                        onClick={runPrompt}
-                        disabled={loading}
-                        className="btn btn-blue"
-                    >
-                        {loading ? 'Running...' : 'Run Prompt'}
-                    </button>
-                    <button
-                        onClick={summarizeText}
-                        disabled={loading}
-                        className="btn btn-green"
-                    >
-                        {loading ? 'Summarizing...' : '✨ Summarize Text'}
-                    </button>
-                    <button
-                        onClick={expandText}
-                        disabled={loading}
-                        className="btn btn-purple"
-                    >
-                        {loading ? 'Expanding...' : '✨ Expand Text'}
-                    </button>
-                    <button
-                        onClick={extractKeywords}
-                        disabled={loading}
-                        className="btn btn-yellow"
-                    >
-                        {loading ? 'Extracting...' : '✨ Extract Keywords'}
-                    </button>
-                </div>
-
+                {/* Loading Indicator */}
                 {loading && (
-                    <div className="loading-container">
-                        <div className="spinner"></div>
-                        <p className="loading-text">Generating responses...</p>
+                    <div className="flex flex-col items-center justify-center p-12 bg-dark-background/70 rounded-xl shadow-xl text-funky-cyan">
+                        <div className="animate-spin-slow border-t-4 border-b-4 border-funky-pink w-16 h-16 rounded-full mb-4"></div>
+                        <p className="text-xl font-semibold animate-pulse">Summoning cosmic wisdom...</p>
                     </div>
                 )}
 
-                {/* Display Results */}
+                {/* Results Display */}
                 {Object.keys(results).length > 0 && (
-                    <div className="results-grid">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                         {Object.entries(results).map(([modelName, output]) => (
-                            <div key={modelName} className="result-card">
-                                <h3>
-                                    {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Output:
+                            <div key={modelName} className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20 transform hover:scale-[1.01] transition-transform duration-200">
+                                <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
+                                    {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Says:
                                 </h3>
-                                {output.startsWith('Please enter a prompt.') || output.startsWith('API Key not configured.') || output.startsWith('API Error:') || output.startsWith('Failed to communicate with backend:') ? (
-                                    <p className="error-message">{output}</p>
+                                {output.startsWith('Please enter') || output.startsWith('API Error:') || output.startsWith('Failed to communicate with backend:') || output.startsWith('Error:') || output.startsWith('Model') ? (
+                                    <p className="text-red-400 font-medium bg-red-900/30 p-4 rounded-md border border-red-700">Error: {output}</p>
                                 ) : (
-                                    <div className="result-content">
-                                        <p>{output}</p>
+                                    // MODIFIED: Styling for Gemini API output
+                                    <div className="max-h-60 overflow-y-auto p-4 bg-dark-background/40 rounded-md border border-gray-700 text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
+                                        <p className="text-light-text text-lg leading-relaxed">
+                                            {output.replace(/---/g, '')}
+                                        </p>
                                     </div>
                                 )}
                             </div>

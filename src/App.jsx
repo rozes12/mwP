@@ -453,3 +453,5 @@ const extractKeywords = async () => {
         </div>
     );
 }
+
+export default App;

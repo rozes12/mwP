@@ -1,6 +1,7 @@
 // frontend/src/App.js
 import React, { useState } from 'react';
 import './index.css'; // Or './App.css', depending on where your Tailwind directives are
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
 function App() {
     const [prompt, setPrompt] = useState('');
@@ -44,6 +45,14 @@ function App() {
             setSelectedImage(null);
             setImageData(null);
         }
+    };
+
+    const handleClearAll = () => {
+        setPrompt('');           // Clear the text prompt
+        setResults({});          // Clear all AI results
+        setSelectedImage(null);  // Clear selected image file
+        setImageData(null);      // Clear image Base64 data
+
     };
 
     const callBackendApi = async (endpoint, payload) => {
@@ -282,6 +291,19 @@ const extractKeywords = async () => {
                             {loading ? 'Scanning...' : '✨ Extract Core Concepts'}
                         </button>
                     </div>
+                    {/* --- NEW: Clear All Button --- */}
+<div className="mt-6">
+    <button
+        onClick={handleClearAll}
+        className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+                   bg-gray-700 shadow-lg border border-gray-600
+                   hover:bg-gray-600 hover:border-gray-500
+                   transition-all duration-300 ease-in-out transform hover:-translate-y-1"
+    >
+        <i className="fas fa-redo-alt mr-2"></i> Clear All
+    </button>
+</div>
+{/* --- END NEW: Clear All Button --- */}
                 </div>
 
                 {/* Loading Indicator */}

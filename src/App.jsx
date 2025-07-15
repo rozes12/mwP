@@ -838,7 +838,7 @@ function App() {
         
     });
 
-    const BACKEND_BASE_URL = 'http://localhost:3001';
+    const BACKEND_BASE_URL = 'https://minwebback-343717256329.us-central1.run.app';
 
     const handlePromptChange = (e) => {
         setPrompt(e.target.value);

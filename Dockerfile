@@ -35,6 +35,12 @@ RUN ls -la /usr/share/nginx/html
 
 RUN apk add --no-cache gettext
 COPY nginx.conf /etc/nginx/conf.d/default.conf.template
+
+# --- NEW LINE: EXPLICITLY CREATE THE DESTINATION DIRECTORY (VERY DEFENSIVE) ---
+RUN mkdir -p /usr/share/nginx/html
+# --- END NEW LINE ---
+
+    
 COPY --from=react-builder /app/dist /usr/share/nginx/html # This path is typically correct for Vite
 
 ENV PORT 8080

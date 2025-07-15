@@ -897,7 +897,7 @@ function App() {
         setLoading(true);
         setResults({});
         try {
-            const data = await callBackendApi('/summarize', { prompt });
+            const data = await callBackendApi('/summarize', { prompt, selectedModels });
             setResults({ 'Gemini API - Summary': data.summary });
         } catch (error) {
             setResults({ error: error.message });

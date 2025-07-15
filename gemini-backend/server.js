@@ -133,109 +133,39 @@ app.post('/generate-responses', async (req, res) => {
 //     res.json({ keywords: output });
 // });
 
-
 app.post('/summarize', async (req, res) => {
-    const { prompt, selectedModels } = req.body; // Expecting prompt AND selectedModels
+    const { prompt, selectedModels } = req.body;
 
-    if (!prompt || prompt.trim() === '') {
-        return res.status(400).json({ error: 'Text to summarize is required.' });
+    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+        return res.status(400).json({ error: 'Valid prompt is required.' });
     }
-    if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
-        return res.status(400).json({ error: 'At least one model must be selected for summarization.' });
+    if (!selectedModels || typeof selectedModels !== 'object') {
+        return res.status(400).json({ error: 'Selected models are required.' });
     }
+
+    const promptForSummary = `Summarize the following text concisely and accurately:\n\n${prompt}`;
 
     const newResults = {};
     const promises = [];
 
     for (const modelName of Object.keys(selectedModels)) {
-        if (selectedModels[modelName] && MODELS[modelName]) {
-            const promptForSummary = `Summarize the following text concisely and accurately:\n\n${prompt}`;
+        if (selectedModels[modelName] && MODELS[modelName]) { // Check if selected AND configured
             promises.push(
-                callGeminiApiBackend(modelName, promptForSummary)
+                callGeminiApiBackend(modelName,promptForSummary)
                     .then(output => newResults[modelName] = output)
-                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
             );
         } else if (selectedModels[modelName] && !MODELS[modelName]) {
+             // If selected on frontend but not configured on backend
             newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
         }
     }
 
     try {
         await Promise.allSettled(promises);
-        res.json(newResults); // Returns an object like { "model-name-1": "summary1", "model-name-2": "summary2" }
+        res.json(newResults);
     } catch (error) {
-        console.error('Error in /summarize endpoint:', error);
-        res.status(500).json({ error: 'Failed to generate summaries from models.' });
-    }
-});
-
-app.post('/expand', async (req, res) => {
-    const { prompt, selectedModels } = req.body; // Expecting prompt AND selectedModels
-
-    if (!prompt || prompt.trim() === '') {
-        return res.status(400).json({ error: 'Text to expand is required.' });
-    }
-    if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
-        return res.status(400).json({ error: 'At least one model must be selected for expansion.' });
-    }
-
-    const newResults = {};
-    const promises = [];
-
-    for (const modelName of Object.keys(selectedModels)) {
-        if (selectedModels[modelName] && MODELS[modelName]) {
-            const promptForExpansion = `Continue writing the following text, expanding on the ideas present. Make it at least 200 words long and maintain the original style and tone:\n\n${prompt}`;
-            promises.push(
-                callGeminiApiBackend(modelName, promptForExpansion)
-                    .then(output => newResults[modelName] = output)
-                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
-            );
-        } else if (selectedModels[modelName] && !MODELS[modelName]) {
-            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
-        }
-    }
-
-    try {
-        await Promise.allSettled(promises);
-        res.json(newResults); // Returns an object like { "model-name-1": "expanded1", "model-name-2": "expanded2" }
-    } catch (error) {
-        console.error('Error in /expand endpoint:', error);
-        res.status(500).json({ error: 'Failed to generate expansions from models.' });
-    }
-});
-
-app.post('/extract-keywords', async (req, res) => {
-    const { prompt, selectedModels } = req.body; // Expecting prompt AND selectedModels
-
-    if (!prompt || prompt.trim() === '') {
-        return res.status(400).json({ error: 'Text to extract keywords from is required.' });
-    }
-    if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
-        return res.status(400).json({ error: 'At least one model must be selected for keyword extraction.' });
-    }
-
-    const newResults = {};
-    const promises = [];
-
-    for (const modelName of Object.keys(selectedModels)) {
-        if (selectedModels[modelName] && MODELS[modelName]) {
-            const promptForKeywords = `Extract the most important keywords and phrases from the following text. List them as comma-separated values, without additional sentences or explanations:\n\n${prompt}`;
-            promises.push(
-                callGeminiApiBackend(modelName, promptForKeywords)
-                    .then(output => newResults[modelName] = output)
-                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
-            );
-        } else if (selectedModels[modelName] && !MODELS[modelName]) {
-            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
-        }
-    }
-
-    try {
-        await Promise.allSettled(promises);
-        res.json(newResults); // Returns an object like { "model-name-1": "keywords1", "model-name-2": "keywords2" }
-    } catch (error) {
-        console.error('Error in /extract-keywords endpoint:', error);
-        res.status(500).json({ error: 'Failed to extract keywords from models.' });
+        console.error('Error in /generate-responses endpoint:', error);
+        res.status(500).json({ error: 'Failed to generate responses from models.' });
     }
 });
 

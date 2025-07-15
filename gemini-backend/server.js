@@ -106,16 +106,6 @@ app.post('/generate-responses', async (req, res) => {
 
 
 
-// app.post('/extract-keywords', async (req, res) => {
-//     const { prompt } = req.body;
-//     if (!prompt || prompt.trim() === '') {
-//         return res.status(400).json({ error: 'Text to extract keywords from is required.' });
-//     }
-//     const promptForKeywords = `Extract the most important keywords and phrases from the following text. List them as comma-separated values, without additional sentences or explanations:\n\n${prompt}`;
-//     const output = await callGeminiApiBackend('gemini-1.5-flash-preview-04-17', promptForKeywords);
-//     res.json({ keywords: output });
-// });
-
 app.post('/summarize', async (req, res) => {
     const { prompt, selectedModels } = req.body;
 
@@ -188,7 +178,42 @@ app.post('/expand', async (req, res) => {
     }
 });
 
+app.post('/extract-keywords', async (req, res) => {
+    const { prompt, selectedModels } = req.body; // <-- Added selectedModels
 
+    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+        return res.status(400).json({ error: 'Text to extract keywords from is required.' });
+    }
+    if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) { // <-- Added validation
+        return res.status(400).json({ error: 'At least one model must be selected for keyword extraction.' });
+    }
+
+    const promptForKeywords = `Extract the most important keywords and phrases from the following text. List them as comma-separated values, without additional sentences or explanations:\n\n${prompt}`;
+
+    const newResults = {};
+    const promises = [];
+
+    for (const modelName of Object.keys(selectedModels)) {
+        if (selectedModels[modelName] && MODELS[modelName]) { // Check if selected AND configured
+            promises.push(
+                callGeminiApiBackend(modelName, promptForKeywords)
+                    .then(output => newResults[modelName] = output)
+                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`) // Added error handling
+            );
+        } else if (selectedModels[modelName] && !MODELS[modelName]) {
+             // If selected on frontend but not configured on backend
+            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
+        }
+    }
+
+    try {
+        await Promise.allSettled(promises);
+        res.json(newResults);
+    } catch (error) {
+        console.error('Error in /extract-keywords endpoint:', error); // Specific endpoint error log
+        res.status(500).json({ error: 'Failed to extract keywords from models.' });
+    }
+});
 
 // Start the server
 app.listen(port, () => {

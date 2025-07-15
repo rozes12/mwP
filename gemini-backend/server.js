@@ -11,7 +11,7 @@ const port = process.env.PORT || 3001; // Choose a different port than your Reac
 // Configure CORS to only allow requests from your frontend's origin
 // Replace 'http://localhost:5173' with your actual frontend URL in production
 app.use(cors({
-    origin: 'http://localhost:5173' // This should be your React app's development URL (Vite default is 5173)
+    origin: ' https://minwebfront-343717256329.us-central1.run.app' // This should be your React app's development URL (Vite default is 5173)
 }));
 app.use(express.json()); // Parse JSON request bodies
 

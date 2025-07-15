@@ -6,6 +6,8 @@ function App() {
     const [prompt, setPrompt] = useState('');
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState({});
+    const [selectedImage, setSelectedImage] = useState(null); // Stores the File object
+    const [imageData, setImageData] = useState(null);   
 
     const [selectedModels, setSelectedModels] = useState({
         'gemini-2.5-flash': true,
@@ -15,7 +17,7 @@ function App() {
     });
 
     const BACKEND_BASE_URL = 'https://minwebback-343717256329.us-central1.run.app';
-
+    
     const handlePromptChange = (e) => {
         setPrompt(e.target.value);
     };
@@ -25,6 +27,23 @@ function App() {
             ...prev,
             [modelName]: !prev[modelName]
         }));
+    };
+
+    const handleImageChange = (event) => {
+        const file = event.target.files[0]; // Get the first selected file
+        if (file) {
+            setSelectedImage(file); // Store the File object
+            const reader = new FileReader(); // Create a FileReader instance
+            reader.onloadend = () => {
+                // When the file is read, its result (Base64 string) is set to imageData state
+                setImageData(reader.result);
+            };
+            reader.readAsDataURL(file); // Read the file as a Data URL (Base64)
+        } else {
+            // If no file is selected or cleared
+            setSelectedImage(null);
+            setImageData(null);
+        }
     };
 
     const callBackendApi = async (endpoint, payload) => {
@@ -56,7 +75,7 @@ function App() {
         setResults({});
 
         try {
-            const data = await callBackendApi('/generate-responses', { prompt, selectedModels });
+            const data = await callBackendApi('/generate-responses', { prompt, selectedModels, imageData });
             setResults(data);
         } catch (error) {
             setResults({ error: error.message });
@@ -128,7 +147,7 @@ const extractKeywords = async () => {
     setResults({});
 
     try {
-        const data = await callBackendApi('/extract-keywords', { prompt, selectedModels }); // Pass selectedModels here too
+        const data = await callBackendApi('/extract-keywords', { prompt, selectedModels, imageData }); // Pass selectedModels here too
         // Store keywords under 'keywords' key
         setResults({ keywords: data }); // 'data' is already the object { model1: keywords1, ... }
     } catch (error) {
@@ -152,6 +171,32 @@ const extractKeywords = async () => {
 
                 {/* Prompt Section Card */}
                 <div className="p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20">
+                    {/* --- NEW: Image Upload Section --- */}
+    <div className="mb-6">
+        <label htmlFor="image-upload" className="block text-lg font-medium text-light-text mb-2">
+            Upload Image (Optional):
+        </label>
+        <input
+            type="file"
+            id="image-upload"
+            accept="image/*" // Restricts file selection to images
+            onChange={handleImageChange}
+            className="w-full p-3 border border-funky-purple-300 rounded-lg shadow-inner bg-dark-background/50 text-light-text focus:outline-none focus:ring-2 focus:ring-funky-cyan transition-all duration-300"
+        />
+        {selectedImage && ( // Display selected image name and a clear button if an image is selected
+            <div className="mt-2 flex items-center text-sm text-gray-400">
+                <span>Selected: {selectedImage.name} ({Math.round(selectedImage.size / 1024)} KB)</span>
+                <button
+                    onClick={() => { setSelectedImage(null); setImageData(null); }}
+                    className="ml-3 text-red-400 hover:text-red-300 transition-colors duration-200"
+                    title="Clear selected image"
+                >
+                    {/* Make sure you have Font Awesome imported for this icon if you want it */}
+                    <i className="fas fa-times-circle"></i> Clear
+                </button>
+            </div>
+        )}
+    </div>
                     <div className="mb-6">
                         <label htmlFor="prompt-input" className="block text-lg font-medium text-light-text mb-2">
                             Type your wildest ideas:
@@ -247,28 +292,7 @@ const extractKeywords = async () => {
                     </div>
                 )}
 
-                {/* Results Display */}
-                {/* {Object.keys(results).length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                        {Object.entries(results).map(([modelName, output]) => (
-                            <div key={modelName} className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20 transform hover:scale-[1.01] transition-transform duration-200">
-                                <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
-                                    {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Says:
-                                </h3>
-                                {output.startsWith('Please enter') || output.startsWith('API Error:') || output.startsWith('Failed to communicate with backend:') || output.startsWith('Error:') || output.startsWith('Model') ? (
-                                    <p className="text-red-400 font-medium bg-red-900/30 p-4 rounded-md border border-red-700">Error: {output}</p>
-                                ) : (
-                                    // MODIFIED: Styling for Gemini API output
-                                    <div className="max-h-60 overflow-y-auto p-4 bg-dark-background/40 rounded-md border border-gray-700 text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
-                                        <p className="text-light-text text-lg leading-relaxed">
-                                            {output.replace(/---/g, '')}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                )} */}
+
                 {/* Results Display */}
 {Object.keys(results).length > 0 && (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">

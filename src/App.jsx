@@ -889,56 +889,130 @@ function App() {
         }
     };
 
+    // const summarizeText = async () => {
+    //     if (!prompt.trim()) {
+    //         setResults({ error: 'Please enter text to summarize.' });
+    //         return;
+    //     }
+    //     setLoading(true);
+    //     setResults({});
+    //     try {
+    //         const data = await callBackendApi('/summarize', { prompt, selectedModels });
+    //         setResults({ 'Gemini API - Summary': data.summary });
+    //     } catch (error) {
+    //         setResults({ error: error.message });
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
+
+    // const expandText = async () => {
+    //     if (!prompt.trim()) {
+    //         setResults({ error: 'Please enter text to expand.' });
+    //         return;
+    //     }
+    //     setLoading(true);
+    //     setResults({});
+    //     try {
+    //         const data = await callBackendApi('/expand', { prompt, selectedModels });
+    //         setResults({ 'Gemini API - Expanded Text': data.expandedText });
+    //     } catch (error) {
+    //         setResults({ error: error.message });
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
+
+    // const extractKeywords = async () => {
+    //     if (!prompt.trim()) {
+    //         setResults({ error: 'Please enter text to extract keywords from.' });
+    //         return;
+    //     }
+    //     setLoading(true);
+    //     setResults({});
+    //     try {
+    //         const data = await callBackendApi('/extract-keywords', { prompt, selectedModels });
+    //         setResults({ 'Gemini API - Keywords': data.keywords });
+    //     } catch (error) {
+    //         setResults({ error: error.message });
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
+
+
     const summarizeText = async () => {
-        if (!prompt.trim()) {
-            setResults({ error: 'Please enter text to summarize.' });
-            return;
-        }
-        setLoading(true);
-        setResults({});
-        try {
-            const data = await callBackendApi('/summarize', { prompt, selectedModels });
-            setResults({ 'Gemini API - Summary': data.summary });
-        } catch (error) {
-            setResults({ error: error.message });
-        } finally {
-            setLoading(false);
-        }
-    };
+    if (!prompt.trim()) {
+        setResults({ error: 'Please enter text to summarize.' });
+        return;
+    }
+    // Check if at least one model is selected in the 'selectedModels' object
+    if (Object.values(selectedModels).every(selected => !selected)) {
+        setResults({ error: 'Please select at least one model for summarization.' });
+        return;
+    }
 
-    const expandText = async () => {
-        if (!prompt.trim()) {
-            setResults({ error: 'Please enter text to expand.' });
-            return;
-        }
-        setLoading(true);
-        setResults({});
-        try {
-            const data = await callBackendApi('/expand', { prompt });
-            setResults({ 'Gemini API - Expanded Text': data.expandedText });
-        } catch (error) {
-            setResults({ error: error.message });
-        } finally {
-            setLoading(false);
-        }
-    };
+    setLoading(true);
+    setResults({}); // Clear previous results before setting new ones
 
-    const extractKeywords = async () => {
-        if (!prompt.trim()) {
-            setResults({ error: 'Please enter text to extract keywords from.' });
-            return;
-        }
-        setLoading(true);
-        setResults({});
-        try {
-            const data = await callBackendApi('/extract-keywords', { prompt });
-            setResults({ 'Gemini API - Keywords': data.keywords });
-        } catch (error) {
-            setResults({ error: error.message });
-        } finally {
-            setLoading(false);
-        }
-    };
+    try {
+        const data = await callBackendApi('/summarize', { prompt, selectedModels });
+        // Store the summaries under a specific key, e.g., 'summaries'
+        setResults({ summaries: data }); // 'data' is already the object { model1: summary1, model2: summary2 }
+    } catch (error) {
+        setResults({ error: error.message });
+    } finally {
+        setLoading(false);
+    }
+};
+
+const expandText = async () => {
+    if (!prompt.trim()) {
+        setResults({ error: 'Please enter text to expand.' });
+        return;
+    }
+    if (Object.values(selectedModels).every(selected => !selected)) {
+        setResults({ error: 'Please select at least one model for expansion.' });
+        return;
+    }
+
+    setLoading(true);
+    setResults({});
+
+    try {
+        const data = await callBackendApi('/expand', { prompt, selectedModels }); // Pass selectedModels here too
+        // Store expansions under 'expansions' key
+        setResults({ expansions: data }); // 'data' is already the object { model1: expandedText1, ... }
+    } catch (error) {
+        setResults({ error: error.message });
+    } finally {
+        setLoading(false);
+    }
+};
+
+const extractKeywords = async () => {
+    if (!prompt.trim()) {
+        setResults({ error: 'Please enter text to extract keywords from.' });
+        return;
+    }
+    if (Object.values(selectedModels).every(selected => !selected)) {
+        setResults({ error: 'Please select at least one model for keyword extraction.' });
+        return;
+    }
+
+    setLoading(true);
+    setResults({});
+
+    try {
+        const data = await callBackendApi('/extract-keywords', { prompt, selectedModels }); // Pass selectedModels here too
+        // Store keywords under 'keywords' key
+        setResults({ keywords: data }); // 'data' is already the object { model1: keywords1, ... }
+    } catch (error) {
+        setResults({ error: error.message });
+    } finally {
+        setLoading(false);
+    }
+};
 
     return (
         // MAIN APP CONTAINER WITH ANIMATED RETRO SWIRL BACKGROUND
@@ -1050,7 +1124,7 @@ function App() {
                 )}
 
                 {/* Results Display */}
-                {Object.keys(results).length > 0 && (
+                {/* {Object.keys(results).length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                         {Object.entries(results).map(([modelName, output]) => (
                             <div key={modelName} className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20 transform hover:scale-[1.01] transition-transform duration-200">
@@ -1070,7 +1144,114 @@ function App() {
                             </div>
                         ))}
                     </div>
-                )}
+                )} */}
+                {/* Results Display */}
+{Object.keys(results).length > 0 && (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        {/* Display for general /generate-responses outputs */}
+        {Object.entries(results).map(([key, value]) => {
+            // Check if this is a general model output, not a nested summary/expansion/keyword object
+            if (key === 'summaries' || key === 'expansions' || key === 'keywords' || key === 'error') {
+                return null; // Skip rendering these here
+            }
+
+            // 'value' should be a string here (the model's response)
+            const output = value;
+
+            return (
+                <div key={key} className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20 transform hover:scale-[1.01] transition-transform duration-200">
+                    <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
+                        {key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Says:
+                    </h3>
+                    {output && (output.startsWith('Please enter') || output.startsWith('API Error:') || output.startsWith('Failed to communicate with backend:') || output.startsWith('Error:') || output.startsWith('Model')) ? (
+                        <p className="text-red-400 font-medium bg-red-900/30 p-4 rounded-md border border-red-700">Error: {output}</p>
+                    ) : (
+                        <div className="max-h-60 overflow-y-auto p-4 bg-dark-background/40 rounded-md border border-gray-700 text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
+                            <p className="text-light-text text-lg leading-relaxed">
+                                {output && output.replace(/---/g, '')} {/* Add null check for output */}
+                            </p>
+                        </div>
+                    )}
+                </div>
+            );
+        })}
+
+        {/* Display for Summaries */}
+        {results.summaries && Object.keys(results.summaries).length > 0 && (
+            <>
+                <h2 className="col-span-full text-3xl font-extrabold text-center text-funky-pink mt-8 mb-4">Summaries</h2>
+                {Object.entries(results.summaries).map(([modelName, summaryOutput]) => (
+                    <div key={`summary-${modelName}`} className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20 transform hover:scale-[1.01] transition-transform duration-200">
+                        <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
+                            {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Summary:
+                        </h3>
+                        {summaryOutput && (summaryOutput.startsWith('Please enter') || summaryOutput.startsWith('API Error:') || summaryOutput.startsWith('Failed to communicate with backend:') || summaryOutput.startsWith('Error:') || summaryOutput.startsWith('Model')) ? (
+                            <p className="text-red-400 font-medium bg-red-900/30 p-4 rounded-md border border-red-700">Error: {summaryOutput}</p>
+                        ) : (
+                            <div className="max-h-60 overflow-y-auto p-4 bg-dark-background/40 rounded-md border border-gray-700 text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
+                                <p className="text-light-text text-lg leading-relaxed">
+                                    {summaryOutput && summaryOutput.replace(/---/g, '')}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </>
+        )}
+
+        {/* Display for Expansions */}
+        {results.expansions && Object.keys(results.expansions).length > 0 && (
+            <>
+                <h2 className="col-span-full text-3xl font-extrabold text-center text-funky-pink mt-8 mb-4">Expansions</h2>
+                {Object.entries(results.expansions).map(([modelName, expandedOutput]) => (
+                    <div key={`expansion-${modelName}`} className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20 transform hover:scale-[1.01] transition-transform duration-200">
+                        <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
+                            {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Expanded:
+                        </h3>
+                        {expandedOutput && (expandedOutput.startsWith('Please enter') || expandedOutput.startsWith('API Error:') || expandedOutput.startsWith('Failed to communicate with backend:') || expandedOutput.startsWith('Error:') || expandedOutput.startsWith('Model')) ? (
+                            <p className="text-red-400 font-medium bg-red-900/30 p-4 rounded-md border border-red-700">Error: {expandedOutput}</p>
+                        ) : (
+                            <div className="max-h-60 overflow-y-auto p-4 bg-dark-background/40 rounded-md border border-gray-700 text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
+                                <p className="text-light-text text-lg leading-relaxed">
+                                    {expandedOutput && expandedOutput.replace(/---/g, '')}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </>
+        )}
+
+        {/* Display for Keywords */}
+        {results.keywords && Object.keys(results.keywords).length > 0 && (
+            <>
+                <h2 className="col-span-full text-3xl font-extrabold text-center text-funky-pink mt-8 mb-4">Keywords</h2>
+                {Object.entries(results.keywords).map(([modelName, keywordsOutput]) => (
+                    <div key={`keywords-${modelName}`} className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20 transform hover:scale-[1.01] transition-transform duration-200">
+                        <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
+                            {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Keywords:
+                        </h3>
+                        {keywordsOutput && (keywordsOutput.startsWith('Please enter') || keywordsOutput.startsWith('API Error:') || keywordsOutput.startsWith('Failed to communicate with backend:') || keywordsOutput.startsWith('Error:') || keywordsOutput.startsWith('Model')) ? (
+                            <p className="text-red-400 font-medium bg-red-900/30 p-4 rounded-md border border-red-700">Error: {keywordsOutput}</p>
+                        ) : (
+                            <div className="max-h-60 overflow-y-auto p-4 bg-dark-background/40 rounded-md border border-gray-700 text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
+                                <p className="text-light-text text-lg leading-relaxed">
+                                    {keywordsOutput && keywordsOutput.replace(/---/g, '')}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </>
+        )}
+
+        {results.error && ( // Display a general error message if one exists
+            <div className="col-span-full p-6 rounded-lg shadow-xl bg-red-900/40 border border-red-700 text-red-300 font-medium text-center">
+                <p>Application Error: {results.error}</p>
+            </div>
+        )}
+    </div>
+)}
             </div>
         </div>
     );

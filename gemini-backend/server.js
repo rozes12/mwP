@@ -102,26 +102,9 @@ app.post('/generate-responses', async (req, res) => {
     }
 });
 
-// Specific endpoints for summary, expansion, keywords (if you want them separate)
-// app.post('/summarize', async (req, res) => {
-//     const { prompt } = req.body;
-//     if (!prompt || prompt.trim() === '') {
-//         return res.status(400).json({ error: 'Text to summarize is required.' });
-//     }
-//     const promptForSummary = `Summarize the following text concisely and accurately:\n\n${prompt}`;
-//     const output = await callGeminiApiBackend('gemini-1.5-flash-preview-04-17', promptForSummary);
-//     res.json({ summary: output });
-// });
 
-// app.post('/expand', async (req, res) => {
-//     const { prompt } = req.body;
-//     if (!prompt || prompt.trim() === '') {
-//         return res.status(400).json({ error: 'Text to expand is required.' });
-//     }
-//     const promptForExpansion = `Continue writing the following text, expanding on the ideas present. Make it at least 200 words long and maintain the original style and tone:\n\n${prompt}`;
-//     const output = await callGeminiApiBackend('gemini-1.5-flash-preview-04-17', promptForExpansion);
-//     res.json({ expandedText: output });
-// });
+
+
 
 // app.post('/extract-keywords', async (req, res) => {
 //     const { prompt } = req.body;
@@ -152,6 +135,42 @@ app.post('/summarize', async (req, res) => {
         if (selectedModels[modelName] && MODELS[modelName]) { // Check if selected AND configured
             promises.push(
                 callGeminiApiBackend(modelName,promptForSummary)
+                    .then(output => newResults[modelName] = output)
+            );
+        } else if (selectedModels[modelName] && !MODELS[modelName]) {
+             // If selected on frontend but not configured on backend
+            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
+        }
+    }
+
+    try {
+        await Promise.allSettled(promises);
+        res.json(newResults);
+    } catch (error) {
+        console.error('Error in /generate-responses endpoint:', error);
+        res.status(500).json({ error: 'Failed to generate responses from models.' });
+    }
+});
+
+
+app.post('/expand', async (req, res) => {
+    const { prompt, selectedModels } = req.body;
+
+    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+        return res.status(400).json({ error: 'Valid prompt is required.' });
+    }
+    if (!selectedModels || typeof selectedModels !== 'object') {
+        return res.status(400).json({ error: 'Selected models are required.' });
+    }
+
+    const promptForExpansion = `Continue writing the following text, expanding on the ideas present. Make it at least 200 words long and maintain the original style and tone:\n\n${prompt}`;
+    const newResults = {};
+    const promises = [];
+
+    for (const modelName of Object.keys(selectedModels)) {
+        if (selectedModels[modelName] && MODELS[modelName]) { // Check if selected AND configured
+            promises.push(
+                callGeminiApiBackend(modelName,promptForExpansion)
                     .then(output => newResults[modelName] = output)
             );
         } else if (selectedModels[modelName] && !MODELS[modelName]) {

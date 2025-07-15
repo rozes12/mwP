@@ -313,7 +313,8 @@ const callGeminiApiBackend = async (modelName, contentParts) => {
 
     try {
         // --- MODIFIED: Pass the contentParts array directly ---
-        const result = await modelInstance.generateContent({ contents: contentParts });
+        // const result = await modelInstance.generateContent({ contents: contentParts });
+         const result = await modelInstance.generateContent(contentParts);
         // --- END MODIFIED ---
         const response = await result.response;
         return response.text();

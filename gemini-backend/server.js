@@ -102,7 +102,7 @@ app.post('/generate-responses', async (req, res) => {
     }
 });
 
-// // Specific endpoints for summary, expansion, keywords (if you want them separate)
+// Specific endpoints for summary, expansion, keywords (if you want them separate)
 // app.post('/summarize', async (req, res) => {
 //     const { prompt } = req.body;
 //     if (!prompt || prompt.trim() === '') {
@@ -133,60 +133,112 @@ app.post('/generate-responses', async (req, res) => {
 //     res.json({ keywords: output });
 // });
 
-// Specific endpoints for summary, expansion, keywords (now accepting modelName)
+
 app.post('/summarize', async (req, res) => {
-    // Destructure both prompt and modelName from the request body
-    const { prompt, modelName } = req.body;
+    const { prompt, selectedModels } = req.body; // Expecting prompt AND selectedModels
 
     if (!prompt || prompt.trim() === '') {
         return res.status(400).json({ error: 'Text to summarize is required.' });
     }
-    // Add validation for modelName
-    if (!modelName || !MODELS[modelName]) {
-        return res.status(400).json({ error: 'Valid modelName is required for summarization.' });
+    if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
+        return res.status(400).json({ error: 'At least one model must be selected for summarization.' });
     }
 
-    const promptForSummary = `Summarize the following text concisely and accurately:\n\n${prompt}`;
-    // Pass the received modelName to the function
-    const output = await callGeminiApiBackend(modelName, promptForSummary);
-    res.json({ summary: output });
+    const newResults = {};
+    const promises = [];
+
+    for (const modelName of Object.keys(selectedModels)) {
+        if (selectedModels[modelName] && MODELS[modelName]) {
+            const promptForSummary = `Summarize the following text concisely and accurately:\n\n${prompt}`;
+            promises.push(
+                callGeminiApiBackend(modelName, promptForSummary)
+                    .then(output => newResults[modelName] = output)
+                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
+            );
+        } else if (selectedModels[modelName] && !MODELS[modelName]) {
+            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
+        }
+    }
+
+    try {
+        await Promise.allSettled(promises);
+        res.json(newResults); // Returns an object like { "model-name-1": "summary1", "model-name-2": "summary2" }
+    } catch (error) {
+        console.error('Error in /summarize endpoint:', error);
+        res.status(500).json({ error: 'Failed to generate summaries from models.' });
+    }
 });
 
 app.post('/expand', async (req, res) => {
-    // Destructure both prompt and modelName from the request body
-    const { prompt, modelName } = req.body;
+    const { prompt, selectedModels } = req.body; // Expecting prompt AND selectedModels
 
     if (!prompt || prompt.trim() === '') {
         return res.status(400).json({ error: 'Text to expand is required.' });
     }
-    // Add validation for modelName
-    if (!modelName || !MODELS[modelName]) {
-        return res.status(400).json({ error: 'Valid modelName is required for expansion.' });
+    if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
+        return res.status(400).json({ error: 'At least one model must be selected for expansion.' });
     }
 
-    const promptForExpansion = `Continue writing the following text, expanding on the ideas present. Make it at least 200 words long and maintain the original style and tone:\n\n${prompt}`;
-    // Pass the received modelName to the function
-    const output = await callGeminiApiBackend(modelName, promptForExpansion);
-    res.json({ expandedText: output });
+    const newResults = {};
+    const promises = [];
+
+    for (const modelName of Object.keys(selectedModels)) {
+        if (selectedModels[modelName] && MODELS[modelName]) {
+            const promptForExpansion = `Continue writing the following text, expanding on the ideas present. Make it at least 200 words long and maintain the original style and tone:\n\n${prompt}`;
+            promises.push(
+                callGeminiApiBackend(modelName, promptForExpansion)
+                    .then(output => newResults[modelName] = output)
+                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
+            );
+        } else if (selectedModels[modelName] && !MODELS[modelName]) {
+            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
+        }
+    }
+
+    try {
+        await Promise.allSettled(promises);
+        res.json(newResults); // Returns an object like { "model-name-1": "expanded1", "model-name-2": "expanded2" }
+    } catch (error) {
+        console.error('Error in /expand endpoint:', error);
+        res.status(500).json({ error: 'Failed to generate expansions from models.' });
+    }
 });
 
 app.post('/extract-keywords', async (req, res) => {
-    // Destructure both prompt and modelName from the request body
-    const { prompt, modelName } = req.body;
+    const { prompt, selectedModels } = req.body; // Expecting prompt AND selectedModels
 
     if (!prompt || prompt.trim() === '') {
         return res.status(400).json({ error: 'Text to extract keywords from is required.' });
     }
-    // Add validation for modelName
-    if (!modelName || !MODELS[modelName]) {
-        return res.status(400).json({ error: 'Valid modelName is required for keyword extraction.' });
+    if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
+        return res.status(400).json({ error: 'At least one model must be selected for keyword extraction.' });
     }
 
-    const promptForKeywords = `Extract the most important keywords and phrases from the following text. List them as comma-separated values, without additional sentences or explanations:\n\n${prompt}`;
-    // Pass the received modelName to the function
-    const output = await callGeminiApiBackend(modelName, promptForKeywords);
-    res.json({ keywords: output });
+    const newResults = {};
+    const promises = [];
+
+    for (const modelName of Object.keys(selectedModels)) {
+        if (selectedModels[modelName] && MODELS[modelName]) {
+            const promptForKeywords = `Extract the most important keywords and phrases from the following text. List them as comma-separated values, without additional sentences or explanations:\n\n${prompt}`;
+            promises.push(
+                callGeminiApiBackend(modelName, promptForKeywords)
+                    .then(output => newResults[modelName] = output)
+                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
+            );
+        } else if (selectedModels[modelName] && !MODELS[modelName]) {
+            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
+        }
+    }
+
+    try {
+        await Promise.allSettled(promises);
+        res.json(newResults); // Returns an object like { "model-name-1": "keywords1", "model-name-2": "keywords2" }
+    } catch (error) {
+        console.error('Error in /extract-keywords endpoint:', error);
+        res.status(500).json({ error: 'Failed to extract keywords from models.' });
+    }
 });
+
 
 
 // Start the server

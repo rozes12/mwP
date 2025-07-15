@@ -832,8 +832,8 @@ function App() {
     const [results, setResults] = useState({});
 
     const [selectedModels, setSelectedModels] = useState({
-        'gemini-2.5-flash': false,
-        'gemini-2.5-pro': false,
+        'gemini-2.5-flash': true,
+        'gemini-2.5-pro': true,
         'gemini-1.5-flash': true,
         
     });

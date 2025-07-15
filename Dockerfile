@@ -26,6 +26,13 @@ RUN npm run build
 # Stage 2: Serve the Static React App with Nginx
 FROM nginx:alpine
 
+# --- DIAGNOSTIC STEPS (TEMPORARY - REMOVE AFTER FIX) ---
+# Add these lines immediately after "FROM nginx:alpine"
+RUN ls -la /usr/share/nginx/
+RUN ls -la /usr/share/nginx/html
+# --- END DIAGNOSTIC ---
+
+
 RUN apk add --no-cache gettext
 COPY nginx.conf /etc/nginx/conf.d/default.conf.template
 COPY --from=react-builder /app/dist /usr/share/nginx/html # This path is typically correct for Vite

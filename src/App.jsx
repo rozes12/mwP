@@ -180,7 +180,21 @@ const extractKeywords = async () => {
 
                 {/* Prompt Section Card */}
                 <div className="p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20">
-                    {/* --- NEW: Image Upload Section --- */}
+                    <div className="mb-6">
+                        <label htmlFor="prompt-input" className="block text-lg font-medium text-light-text mb-2">
+                            Type your wildest ideas:
+                        </label>
+                        <textarea
+                            id="prompt-input"
+                            rows="6"
+                            placeholder="e.g., Describe a futuristic city powered by sentient plants..."
+                            value={prompt}
+                            onChange={handlePromptChange}
+                            className="w-full p-4 border border-funky-purple-300 rounded-lg shadow-inner bg-dark-background/50 text-light-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-funky-cyan transition-all duration-300 resize-y"
+                        ></textarea>
+                    </div>
+
+                       {/* --- NEW: Image Upload Section --- */}
     <div className="mb-6">
         <label htmlFor="image-upload" className="block text-lg font-medium text-light-text mb-2">
             Upload Image (Optional):
@@ -206,19 +220,6 @@ const extractKeywords = async () => {
             </div>
         )}
     </div>
-                    <div className="mb-6">
-                        <label htmlFor="prompt-input" className="block text-lg font-medium text-light-text mb-2">
-                            Type your wildest ideas:
-                        </label>
-                        <textarea
-                            id="prompt-input"
-                            rows="6"
-                            placeholder="e.g., Describe a futuristic city powered by sentient plants..."
-                            value={prompt}
-                            onChange={handlePromptChange}
-                            className="w-full p-4 border border-funky-purple-300 rounded-lg shadow-inner bg-dark-background/50 text-light-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-funky-cyan transition-all duration-300 resize-y"
-                        ></textarea>
-                    </div>
 
                     {/* Model Selection */}
                     <div className="mb-8">

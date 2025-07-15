@@ -455,8 +455,6 @@
 // }
 
 // export default App;
-
-
 import React, { useState } from 'react';
 import './index.css'; // Or './App.css', depending on where your Tailwind directives are
 import '@fortawesome/fontawesome-free/css/all.min.css'; // Make sure Font Awesome is imported
@@ -465,9 +463,7 @@ function App() {
     const [prompt, setPrompt] = useState('');
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState({});
-    // --- NEW: State for general application errors ---
-    const [error, setError] = useState(null); 
-    // --- END NEW ---
+    const [error, setError] = useState(null); // State for general application errors
     const [selectedImage, setSelectedImage] = useState(null); // Stores the File object
     const [imageData, setImageData] = useState(null);   
 
@@ -477,9 +473,7 @@ function App() {
         'gemini-1.5-flash': true,
     });
 
-    // --- NEW: State to manage which output boxes are expanded ---
-    const [expandedOutputs, setExpandedOutputs] = useState({});
-    // --- END NEW ---
+    const [expandedOutputs, setExpandedOutputs] = useState({}); // State to manage which output boxes are expanded
 
     const BACKEND_BASE_URL = 'https://minwebback-343717256329.us-central1.run.app';
     
@@ -511,7 +505,6 @@ function App() {
         }
     };
 
-    // --- UPDATED: handleClearAll now resets error and expandedOutputs states ---
     const handleClearAll = () => {
         setPrompt('');           // Clear the text prompt
         setResults({});          // Clear all AI results
@@ -520,24 +513,22 @@ function App() {
         setError(null);          // Clear any general error messages
         setExpandedOutputs({});  // Clear all expansion states
     };
-    // --- END UPDATED ---
 
-    // --- NEW: Function to toggle the expansion state of an output box ---
     const toggleExpansion = (modelName) => {
         setExpandedOutputs(prev => ({
             ...prev,
             [modelName]: !prev[modelName] // Toggle the boolean for the specific model
         }));
     };
-    // --- END NEW ---
 
-    // --- UPDATED: callBackendApi to handle global error state and clear previous results ---
+    // --- UPDATED: callBackendApi to centralize payload construction ---
     const callBackendApi = async (endpoint, payload) => {
         setLoading(true);
         setError(null); // Clear any previous general error before a new request
-        setResults({}); // Clear previous results before new call
+        setResults({}); // Clear previous results before new call (important for fresh results)
 
         const activeModels = Object.keys(selectedModels).filter(model => selectedModels[model]);
+
         if (activeModels.length === 0) {
             setError("Please select at least one AI model.");
             setLoading(false);
@@ -545,9 +536,14 @@ function App() {
         }
 
         try {
-            const finalPayload = { ...payload, models: activeModels }; // Ensure models are always passed
+            // Start with the base payload (e.g., { prompt: "..." })
+            const finalPayload = { ...payload, models: activeModels }; // ALWAYS include active models
+
+            // Conditionally add imageData only for relevant endpoints
             if (endpoint === '/generate-responses' || endpoint === '/extract-keywords') {
-                finalPayload.image = imageData; // Include image data only for relevant endpoints
+                if (imageData) { // Only add if an image is actually selected
+                    finalPayload.image = imageData; 
+                }
             }
 
             const response = await fetch(`${BACKEND_BASE_URL}${endpoint}`, {
@@ -558,12 +554,12 @@ function App() {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || `Backend HTTP error! Status: ${response.status}`);
+                // Check if errorData.error exists and is a string, otherwise use a generic message
+                const errorMessage = typeof errorData.error === 'string' ? errorData.error : `Backend HTTP error! Status: ${response.status}`;
+                throw new Error(errorMessage);
             }
             const data = await response.json();
-            // --- NEW: Reset expansion states on successful new results ---
-            setExpandedOutputs({}); 
-            // --- END NEW ---
+            setExpandedOutputs({}); // Reset expansion states on successful new results
             return data;
         } catch (err) {
             console.error(`Error calling backend endpoint ${endpoint}:`, err);
@@ -575,18 +571,19 @@ function App() {
     };
     // --- END UPDATED ---
 
-    // --- UPDATED: API call functions to use new error handling and expandedOutputs reset ---
+    // --- UPDATED: API call functions now only pass 'prompt' to callBackendApi ---
     const runPrompt = async () => {
         if (!prompt.trim()) {
             setError('Please enter a prompt.');
-            setResults({});
+            setResults({}); // Clear any previous results
             return;
         }
         try {
+            // callBackendApi will handle adding models and image data
             const data = await callBackendApi('/generate-responses', { prompt });
             setResults(data);
         } catch (err) {
-            // Error is already handled by callBackendApi's setError, no need to re-set results.error
+            // Error is already handled by callBackendApi's setError
         }
     };
 
@@ -597,6 +594,7 @@ function App() {
             return;
         }
         try {
+            // callBackendApi will handle adding models
             const data = await callBackendApi('/summarize', { prompt });
             setResults({ summaries: data });
         } catch (err) {
@@ -611,6 +609,7 @@ function App() {
             return;
         }
         try {
+            // callBackendApi will handle adding models
             const data = await callBackendApi('/expand', { prompt });
             setResults({ expansions: data });
         } catch (err) {
@@ -625,6 +624,7 @@ function App() {
             return;
         }
         try {
+            // callBackendApi will handle adding models and image data
             const data = await callBackendApi('/extract-keywords', { prompt });
             setResults({ keywords: data });
         } catch (err) {
@@ -634,18 +634,15 @@ function App() {
     // --- END UPDATED ---
 
     return (
-        // MAIN APP CONTAINER WITH ANIMATED RETRO SWIRL BACKGROUND (UNCHANGED)
         <div className="min-h-screen flex flex-col items-center py-8 px-4 sm:px-6 lg:px-8
                         bg-retro-swirl-animated bg-repeat bg-fixed bg-cover
                         text-light-text font-sans">
-            {/* Content Wrapper */}
             <div className="max-w-4xl w-full space-y-8 p-6 bg-dark-background/80 backdrop-blur-sm rounded-xl shadow-2xl border border-funky-purple/30">
 
                 <h1 className="text-4xl sm:text-5xl font-extrabold text-center text-funky-cyan mb-8 tracking-wide drop-shadow-lg">
                     🔮 Gemini Fun-House AI 🚀
                 </h1>
 
-                {/* Prompt Section Card */}
                 <div className="p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20">
                     <div className="mb-6">
                         <label htmlFor="prompt-input" className="block text-lg font-medium text-light-text mb-2">
@@ -661,7 +658,6 @@ function App() {
                         ></textarea>
                     </div>
 
-                    {/* Image Upload Section (UNCHANGED from your provided code) */}
                     <div className="mb-4">
                         <label htmlFor="image-upload" className="block text-funky-cyan text-lg font-medium mb-2">
                             Upload Image (Optional):
@@ -686,7 +682,6 @@ function App() {
                         )}
                     </div>
 
-                    {/* Model Selection */}
                     <div className="mb-8">
                         <label className="block text-lg font-medium text-light-text mb-3">
                             Choose your AI companions:
@@ -710,7 +705,6 @@ function App() {
                         </div>
                     </div>
 
-                    {/* Buttons */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
                         <button
                             onClick={runPrompt}
@@ -757,7 +751,6 @@ function App() {
                             {loading ? 'Scanning...' : '✨ Extract Core Concepts'}
                         </button>
                     </div>
-                    {/* --- Clear All Button (UNCHANGED from your provided code) --- */}
                     <div className="mt-6">
                         <button
                             onClick={handleClearAll}
@@ -769,10 +762,8 @@ function App() {
                             <i className="fas fa-redo-alt mr-2"></i> Clear All
                         </button>
                     </div>
-                    {/* --- END Clear All Button --- */}
                 </div>
 
-                {/* Loading Indicator (UNCHANGED) */}
                 {loading && (
                     <div className="flex flex-col items-center justify-center p-12 bg-dark-background/70 rounded-xl shadow-xl text-funky-cyan">
                         <div className="animate-spin-slow border-t-4 border-b-4 border-funky-pink w-16 h-16 rounded-full mb-4"></div>
@@ -780,52 +771,39 @@ function App() {
                     </div>
                 )}
 
-                {/* --- NEW: Centralized Error Display --- */}
                 {error && ( 
                     <div className="mt-8 p-4 bg-red-900/30 border border-red-700 rounded-lg shadow-md text-red-300 font-medium text-center animate-fade-in">
                         <p className="font-bold text-xl mb-2">Error:</p>
                         <p className="text-lg">{error}</p>
                     </div>
                 )}
-                {/* --- END NEW --- */}
 
-                {/* Results Display */}
                 {Object.keys(results).length > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                        {/* Display for general /generate-responses outputs */}
                         {Object.entries(results).map(([key, value]) => {
-                            // Filter out 'summaries', 'expansions', 'keywords', 'error' keys which are handled separately
                             if (key === 'summaries' || key === 'expansions' || key === 'keywords') {
                                 return null;
                             }
-                            // If 'value' is an error object from a specific model, display its message
                             const output = value && typeof value === 'object' && value.error ? value.error : value;
 
-                            // --- NEW: Get expansion state for this specific model ---
                             const isCurrentExpanded = expandedOutputs[key];
-                            // --- END NEW ---
 
                             return (
                                 <div
                                     key={key}
-                                    // --- NEW: Add onClick handler and cursor/relative classes ---
                                     onClick={() => toggleExpansion(key)}
                                     className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20
                                                transform hover:scale-[1.01] transition-transform duration-200 cursor-pointer
-                                               relative" // 'relative' for positioning the chevron icon
+                                               relative"
                                 >
                                     <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
                                         {key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Says:
-                                        {/* --- NEW: Expansion Indicator Icon --- */}
                                         <i className={`fas ${isCurrentExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}
                                                         absolute top-6 right-6 text-funky-pink`}></i>
-                                        {/* --- END NEW --- */}
                                     </h3>
-                                    {/* Display model-specific error or output */}
                                     {output && (output.startsWith('Please enter') || output.startsWith('API Error:') || output.startsWith('Failed to communicate with backend:') || output.startsWith('Model returned an error:') || output.startsWith('Error:')) ? (
                                         <p className="text-red-400 font-medium bg-red-900/30 p-4 rounded-md border border-red-700">Error: {output}</p>
                                     ) : (
-                                        // --- NEW: Conditionally apply height and overflow classes ---
                                         <div className={`${isCurrentExpanded ? '' : 'max-h-60 overflow-y-auto'}
                                                         p-4 bg-dark-background/40 rounded-md border border-gray-700
                                                         text-gray-300 text-base leading-relaxed whitespace-pre-wrap
@@ -834,24 +812,19 @@ function App() {
                                                 {output && output.replace(/---/g, '')}
                                             </p>
                                         </div>
-                                        // --- END NEW ---
                                     )}
                                 </div>
                             );
                         })}
 
-                        {/* Display for Summaries */}
                         {results.summaries && Object.keys(results.summaries).length > 0 && (
                             <>
                                 <h2 className="col-span-full text-3xl font-extrabold text-center text-funky-pink mt-8 mb-4">Summaries</h2>
                                 {Object.entries(results.summaries).map(([modelName, summaryOutput]) => {
-                                    // --- NEW: Get expansion state for this specific model ---
                                     const isCurrentExpanded = expandedOutputs[modelName];
-                                    // --- END NEW ---
                                     return (
                                         <div
                                             key={`summary-${modelName}`}
-                                            // --- NEW: Add onClick handler and cursor/relative classes ---
                                             onClick={() => toggleExpansion(modelName)}
                                             className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20
                                                        transform hover:scale-[1.01] transition-transform duration-200 cursor-pointer
@@ -859,15 +832,12 @@ function App() {
                                         >
                                             <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
                                                 {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Summary:
-                                                {/* --- NEW: Expansion Indicator Icon --- */}
                                                 <i className={`fas ${isCurrentExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}
                                                                 absolute top-6 right-6 text-funky-pink`}></i>
-                                                {/* --- END NEW --- */}
                                             </h3>
                                             {summaryOutput && (summaryOutput.startsWith('Please enter') || summaryOutput.startsWith('API Error:') || summaryOutput.startsWith('Failed to communicate with backend:') || summaryOutput.startsWith('Model returned an error:') || summaryOutput.startsWith('Error:')) ? (
                                                 <p className="text-red-400 font-medium bg-red-900/30 p-4 rounded-md border border-red-700">Error: {summaryOutput}</p>
                                             ) : (
-                                                // --- NEW: Conditionally apply height and overflow classes ---
                                                 <div className={`${isCurrentExpanded ? '' : 'max-h-60 overflow-y-auto'}
                                                                 p-4 bg-dark-background/40 rounded-md border border-gray-700
                                                                 text-gray-300 text-base leading-relaxed whitespace-pre-wrap
@@ -876,7 +846,6 @@ function App() {
                                                         {summaryOutput && summaryOutput.replace(/---/g, '')}
                                                     </p>
                                                 </div>
-                                                // --- END NEW ---
                                             )}
                                         </div>
                                     );
@@ -884,18 +853,14 @@ function App() {
                             </>
                         )}
 
-                        {/* Display for Expansions */}
                         {results.expansions && Object.keys(results.expansions).length > 0 && (
                             <>
                                 <h2 className="col-span-full text-3xl font-extrabold text-center text-funky-pink mt-8 mb-4">Expansions</h2>
                                 {Object.entries(results.expansions).map(([modelName, expandedOutput]) => {
-                                    // --- NEW: Get expansion state for this specific model ---
                                     const isCurrentExpanded = expandedOutputs[modelName];
-                                    // --- END NEW ---
                                     return (
                                         <div
                                             key={`expansion-${modelName}`}
-                                            // --- NEW: Add onClick handler and cursor/relative classes ---
                                             onClick={() => toggleExpansion(modelName)}
                                             className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20
                                                        transform hover:scale-[1.01] transition-transform duration-200 cursor-pointer
@@ -903,15 +868,12 @@ function App() {
                                         >
                                             <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
                                                 {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Expanded:
-                                                {/* --- NEW: Expansion Indicator Icon --- */}
                                                 <i className={`fas ${isCurrentExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}
                                                                 absolute top-6 right-6 text-funky-pink`}></i>
-                                                {/* --- END NEW --- */}
                                             </h3>
                                             {expandedOutput && (expandedOutput.startsWith('Please enter') || expandedOutput.startsWith('API Error:') || expandedOutput.startsWith('Failed to communicate with backend:') || expandedOutput.startsWith('Model returned an error:') || expandedOutput.startsWith('Error:')) ? (
                                                 <p className="text-red-400 font-medium bg-red-900/30 p-4 rounded-md border border-red-700">Error: {expandedOutput}</p>
                                             ) : (
-                                                // --- NEW: Conditionally apply height and overflow classes ---
                                                 <div className={`${isCurrentExpanded ? '' : 'max-h-60 overflow-y-auto'}
                                                                 p-4 bg-dark-background/40 rounded-md border border-gray-700
                                                                 text-gray-300 text-base leading-relaxed whitespace-pre-wrap
@@ -920,7 +882,6 @@ function App() {
                                                         {expandedOutput && expandedOutput.replace(/---/g, '')}
                                                     </p>
                                                 </div>
-                                                // --- END NEW ---
                                             )}
                                         </div>
                                     );
@@ -928,18 +889,14 @@ function App() {
                             </>
                         )}
 
-                        {/* Display for Keywords */}
                         {results.keywords && Object.keys(results.keywords).length > 0 && (
                             <>
                                 <h2 className="col-span-full text-3xl font-extrabold text-center text-funky-pink mt-8 mb-4">Keywords</h2>
                                 {Object.entries(results.keywords).map(([modelName, keywordsOutput]) => {
-                                    // --- NEW: Get expansion state for this specific model ---
                                     const isCurrentExpanded = expandedOutputs[modelName];
-                                    // --- END NEW ---
                                     return (
                                         <div
                                             key={`keywords-${modelName}`}
-                                            // --- NEW: Add onClick handler and cursor/relative classes ---
                                             onClick={() => toggleExpansion(modelName)}
                                             className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20
                                                        transform hover:scale-[1.01] transition-transform duration-200 cursor-pointer
@@ -947,15 +904,12 @@ function App() {
                                         >
                                             <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
                                                 {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Keywords:
-                                                {/* --- NEW: Expansion Indicator Icon --- */}
                                                 <i className={`fas ${isCurrentExpanded ? 'fa-chevron-up' : 'fa-chevron-down'}
                                                                 absolute top-6 right-6 text-funky-pink`}></i>
-                                                {/* --- END NEW --- */}
                                             </h3>
                                             {keywordsOutput && (keywordsOutput.startsWith('Please enter') || keywordsOutput.startsWith('API Error:') || keywordsOutput.startsWith('Failed to communicate with backend:') || keywordsOutput.startsWith('Model returned an error:') || keywordsOutput.startsWith('Error:')) ? (
                                                 <p className="text-red-400 font-medium bg-red-900/30 p-4 rounded-md border border-red-700">Error: {keywordsOutput}</p>
                                             ) : (
-                                                // --- NEW: Conditionally apply height and overflow classes ---
                                                 <div className={`${isCurrentExpanded ? '' : 'max-h-60 overflow-y-auto'}
                                                                 p-4 bg-dark-background/40 rounded-md border border-gray-700
                                                                 text-gray-300 text-base leading-relaxed whitespace-pre-wrap
@@ -964,14 +918,12 @@ function App() {
                                                         {keywordsOutput && keywordsOutput.replace(/---/g, '')}
                                                     </p>
                                                 </div>
-                                                // --- END NEW ---
                                             )}
                                         </div>
                                     );
                                 })}
                             </>
                         )}
-                        {/* --- REMOVED: Old `results.error` display is replaced by the new global error state display. --- */}
                     </div>
                 )}
             </div>

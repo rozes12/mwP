@@ -102,34 +102,89 @@ app.post('/generate-responses', async (req, res) => {
     }
 });
 
-// Specific endpoints for summary, expansion, keywords (if you want them separate)
+// // Specific endpoints for summary, expansion, keywords (if you want them separate)
+// app.post('/summarize', async (req, res) => {
+//     const { prompt } = req.body;
+//     if (!prompt || prompt.trim() === '') {
+//         return res.status(400).json({ error: 'Text to summarize is required.' });
+//     }
+//     const promptForSummary = `Summarize the following text concisely and accurately:\n\n${prompt}`;
+//     const output = await callGeminiApiBackend('gemini-1.5-flash-preview-04-17', promptForSummary);
+//     res.json({ summary: output });
+// });
+
+// app.post('/expand', async (req, res) => {
+//     const { prompt } = req.body;
+//     if (!prompt || prompt.trim() === '') {
+//         return res.status(400).json({ error: 'Text to expand is required.' });
+//     }
+//     const promptForExpansion = `Continue writing the following text, expanding on the ideas present. Make it at least 200 words long and maintain the original style and tone:\n\n${prompt}`;
+//     const output = await callGeminiApiBackend('gemini-1.5-flash-preview-04-17', promptForExpansion);
+//     res.json({ expandedText: output });
+// });
+
+// app.post('/extract-keywords', async (req, res) => {
+//     const { prompt } = req.body;
+//     if (!prompt || prompt.trim() === '') {
+//         return res.status(400).json({ error: 'Text to extract keywords from is required.' });
+//     }
+//     const promptForKeywords = `Extract the most important keywords and phrases from the following text. List them as comma-separated values, without additional sentences or explanations:\n\n${prompt}`;
+//     const output = await callGeminiApiBackend('gemini-1.5-flash-preview-04-17', promptForKeywords);
+//     res.json({ keywords: output });
+// });
+
+// Specific endpoints for summary, expansion, keywords (now accepting modelName)
 app.post('/summarize', async (req, res) => {
-    const { prompt } = req.body;
+    // Destructure both prompt and modelName from the request body
+    const { prompt, modelName } = req.body;
+
     if (!prompt || prompt.trim() === '') {
         return res.status(400).json({ error: 'Text to summarize is required.' });
     }
+    // Add validation for modelName
+    if (!modelName || !MODELS[modelName]) {
+        return res.status(400).json({ error: 'Valid modelName is required for summarization.' });
+    }
+
     const promptForSummary = `Summarize the following text concisely and accurately:\n\n${prompt}`;
-    const output = await callGeminiApiBackend('gemini-1.5-flash-preview-04-17', promptForSummary);
+    // Pass the received modelName to the function
+    const output = await callGeminiApiBackend(modelName, promptForSummary);
     res.json({ summary: output });
 });
 
 app.post('/expand', async (req, res) => {
-    const { prompt } = req.body;
+    // Destructure both prompt and modelName from the request body
+    const { prompt, modelName } = req.body;
+
     if (!prompt || prompt.trim() === '') {
         return res.status(400).json({ error: 'Text to expand is required.' });
     }
+    // Add validation for modelName
+    if (!modelName || !MODELS[modelName]) {
+        return res.status(400).json({ error: 'Valid modelName is required for expansion.' });
+    }
+
     const promptForExpansion = `Continue writing the following text, expanding on the ideas present. Make it at least 200 words long and maintain the original style and tone:\n\n${prompt}`;
-    const output = await callGeminiApiBackend('gemini-1.5-flash-preview-04-17', promptForExpansion);
+    // Pass the received modelName to the function
+    const output = await callGeminiApiBackend(modelName, promptForExpansion);
     res.json({ expandedText: output });
 });
 
 app.post('/extract-keywords', async (req, res) => {
-    const { prompt } = req.body;
+    // Destructure both prompt and modelName from the request body
+    const { prompt, modelName } = req.body;
+
     if (!prompt || prompt.trim() === '') {
         return res.status(400).json({ error: 'Text to extract keywords from is required.' });
     }
+    // Add validation for modelName
+    if (!modelName || !MODELS[modelName]) {
+        return res.status(400).json({ error: 'Valid modelName is required for keyword extraction.' });
+    }
+
     const promptForKeywords = `Extract the most important keywords and phrases from the following text. List them as comma-separated values, without additional sentences or explanations:\n\n${prompt}`;
-    const output = await callGeminiApiBackend('gemini-1.5-flash-preview-04-17', promptForKeywords);
+    // Pass the received modelName to the function
+    const output = await callGeminiApiBackend(modelName, promptForKeywords);
     res.json({ keywords: output });
 });
 

@@ -1339,11 +1339,104 @@ app.post('/extract-keywords', async (req, res) => {
 });
 
 // Image Generation Endpoint with Gemini 2.0 Flash (Image Generation Preview)
+// app.post('/generate-image', async (req, res) => {
+//     const { prompt } = req.body;
+//     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+//         return res.status(400).json({ error: 'A prompt is required for image generation.' });
+//     }
+//     const modelInstance = MODELS['gemini-2.0-flash-preview-image-generation'];
+//     if (!modelInstance) {
+//         return res.status(500).json({ error: 'Gemini 2.0 Flash Image Generation model is not configured on the backend.' });
+//     }
+
+//     try {
+//         console.log(`Attempting to generate image using Gemini 2.0 Flash for prompt: "${prompt}"`);
+        
+//         const generationConfig = {}; 
+
+//         const safetySettings = [
+//             { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+//             { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+//             { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+//             { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+//         ];
+
+//         // Modify the prompt to explicitly ask for both an image and text
+//         const multimodalPrompt = `Generate an image based on the following description: "${prompt}". Also, provide a short textual description of the generated image.`;
+
+//         const result = await modelInstance.generateContent({
+//             contents: [{ role: "user", parts: [{ text: multimodalPrompt }] }],
+//             generationConfig,
+//             safetySettings,
+//         });
+
+//         const response = await result.response;
+        
+//         // Find the image part and the text part (if any) from the response candidates
+//         const candidate = response.candidates[0];
+
+//         if (candidate && candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
+//             const imagePart = candidate.content.parts.find(part => part.inlineData && part.inlineData.mimeType.startsWith('image/'));
+//             const textPart = candidate.content.parts.find(part => part.text); // Find the text part
+
+//             if (imagePart && imagePart.inlineData && imagePart.inlineData.data) {
+//                 const base64Data = imagePart.inlineData.data;
+//                 const imageUrl = `data:${imagePart.inlineData.mimeType};base64,${base64Data}`;
+//                 const textOutput = textPart ? textPart.text : ''; // Extract text or set empty string
+                
+//                 console.log('Image generated successfully by Gemini 2.0 Flash.');
+//                 res.json({ imageUrl: imageUrl, textOutput: textOutput }); // Return both image URL and any text
+//             } else {
+//                 console.warn('Gemini 2.0 Flash did not return an image part, or image data was invalid. It might have returned only text or blocked due to safety.');
+//                 const textOutput = textPart ? textPart.text : 'No image or readable text output from model.';
+//                 // If no image, but response has text, log the text and return it as error message.
+//                 res.status(500).json({ error: `Image generation failed: ${textOutput}` });
+//             }
+//         } else {
+//             console.error('Gemini 2.0 Flash response did not contain valid content or candidates:', response);
+//             res.status(500).json({ error: 'Image generation failed: No content or candidates returned.' });
+//         }
+//     } catch (error) {
+//         console.error('Error generating image with Gemini API:', error);
+//         let errorMessage = 'Failed to generate image with Gemini API.';
+
+//         if (error.message) {
+//             errorMessage += ` Error: ${error.message}`;
+//         }
+//         if (error.response && error.response.error && error.response.error.message) {
+//             errorMessage += ` API Error: ${error.response.error.message}`;
+//         }
+//         if (error.result && error.result.promptFeedback && error.result.promptFeedback.blockReason) {
+//             errorMessage += ` Blocked: ${error.result.promptFeedback.blockReason}`;
+//         }
+//         if (error.result && error.result.candidates && error.result.candidates[0] && error.result.candidates[0].finishReason) {
+//              errorMessage += ` Finish Reason: ${error.result.candidates[0].finishReason}`;
+//         }
+        
+//         try {
+//             // Safely stringify the error object for logging, handling Buffers
+//             console.error('  Full Error Object:', JSON.stringify(error, (key, value) => {
+//                 if (value && value.type === 'Buffer' && Array.isArray(value.data)) {
+//                     return '[Buffer Data]';
+//                 }
+//                 return value;
+//             }, 2));
+//         } catch (e) {
+//             console.error('  Could not stringify full error object for logging:', e.message);
+//         }
+
+//         res.status(500).json({ error: errorMessage.trim() });
+//     }
+// });
+
+
 app.post('/generate-image', async (req, res) => {
     const { prompt } = req.body;
+
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
         return res.status(400).json({ error: 'A prompt is required for image generation.' });
     }
+
     const modelInstance = MODELS['gemini-2.0-flash-preview-image-generation'];
     if (!modelInstance) {
         return res.status(500).json({ error: 'Gemini 2.0 Flash Image Generation model is not configured on the backend.' });
@@ -1351,9 +1444,8 @@ app.post('/generate-image', async (req, res) => {
 
     try {
         console.log(`Attempting to generate image using Gemini 2.0 Flash for prompt: "${prompt}"`);
-        
-        const generationConfig = {}; 
 
+        const generationConfig = {};
         const safetySettings = [
             { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
             { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
@@ -1361,82 +1453,62 @@ app.post('/generate-image', async (req, res) => {
             { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
         ];
 
-        // Modify the prompt to explicitly ask for both an image and text
-        const multimodalPrompt = `Generate an image based on the following description: "${prompt}". Also, provide a short textual description of the generated image.`;
-        //    const multimodalPrompt = `Generate an image based on the following description: "${prompt}".`;
+        // Use prompt that suggests both image and text generation
+        const multimodalPrompt = `Create an image based on the following scene: "${prompt}". Also describe the image in one sentence.`;
 
         const result = await modelInstance.generateContent({
-    contents: [{ role: "user", parts: [{ text: multimodalPrompt }] }],
-    generationConfig,
-    safetySettings,
-    responseMimeType: ['image/png', 'text/plain']  // ✅ This fixes the 400 error
-});
-        // const result = await modelInstance.generateContent({
-        //     contents: [{ role: "user", parts: [{ text: multimodalPrompt }] }],
-            
-
-        //     generationConfig,
-        //     safetySettings,
-        // });
+            contents: [{ role: "user", parts: [{ text: multimodalPrompt }] }],
+            generationConfig,
+            safetySettings,
+        });
 
         const response = await result.response;
-        
-        // Find the image part and the text part (if any) from the response candidates
         const candidate = response.candidates[0];
 
-        if (candidate && candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
-            const imagePart = candidate.content.parts.find(part => part.inlineData && part.inlineData.mimeType.startsWith('image/'));
-            // const textPart = candidate.content.parts.find(part => part.text); // Find the text part
+        if (candidate?.content?.parts?.length) {
+            const imagePart = candidate.content.parts.find(part => part.inlineData?.mimeType?.startsWith('image/'));
+            const textPart = candidate.content.parts.find(part => part.text);
 
-            if (imagePart && imagePart.inlineData && imagePart.inlineData.data) {
+            if (imagePart?.inlineData?.data) {
                 const base64Data = imagePart.inlineData.data;
                 const imageUrl = `data:${imagePart.inlineData.mimeType};base64,${base64Data}`;
-                const textOutput = textPart ? textPart.text : ''; // Extract text or set empty string
-                
+                const textOutput = textPart?.text || '';
+
                 console.log('Image generated successfully by Gemini 2.0 Flash.');
-                res.json({ imageUrl: imageUrl, textOutput: textOutput }); // Return both image URL and any text
+                return res.json({ imageUrl, textOutput });
             } else {
-                console.warn('Gemini 2.0 Flash did not return an image part, or image data was invalid. It might have returned only text or blocked due to safety.');
-                const textOutput = textPart ? textPart.text : 'No image or readable text output from model.';
-                // If no image, but response has text, log the text and return it as error message.
-                res.status(500).json({ error: `Image generation failed: ${textOutput}` });
+                const textOutput = textPart?.text || 'No image or readable text output from model.';
+                console.warn('Image not returned. Possibly blocked or malformed.');
+                return res.status(500).json({ error: `Image generation failed: ${textOutput}` });
             }
         } else {
-            console.error('Gemini 2.0 Flash response did not contain valid content or candidates:', response);
-            res.status(500).json({ error: 'Image generation failed: No content or candidates returned.' });
+            console.error('Response missing valid candidates or content:', response);
+            return res.status(500).json({ error: 'Image generation failed: No valid content returned.' });
         }
+
     } catch (error) {
         console.error('Error generating image with Gemini API:', error);
         let errorMessage = 'Failed to generate image with Gemini API.';
 
-        if (error.message) {
-            errorMessage += ` Error: ${error.message}`;
-        }
-        if (error.response && error.response.error && error.response.error.message) {
-            errorMessage += ` API Error: ${error.response.error.message}`;
-        }
-        if (error.result && error.result.promptFeedback && error.result.promptFeedback.blockReason) {
-            errorMessage += ` Blocked: ${error.result.promptFeedback.blockReason}`;
-        }
-        if (error.result && error.result.candidates && error.result.candidates[0] && error.result.candidates[0].finishReason) {
-             errorMessage += ` Finish Reason: ${error.result.candidates[0].finishReason}`;
-        }
-        
+        if (error.message) errorMessage += ` Error: ${error.message}`;
+        if (error.response?.error?.message) errorMessage += ` API Error: ${error.response.error.message}`;
+        if (error.result?.promptFeedback?.blockReason) errorMessage += ` Blocked: ${error.result.promptFeedback.blockReason}`;
+        if (error.result?.candidates?.[0]?.finishReason) errorMessage += ` Finish Reason: ${error.result.candidates[0].finishReason}`;
+
         try {
-            // Safely stringify the error object for logging, handling Buffers
             console.error('  Full Error Object:', JSON.stringify(error, (key, value) => {
-                if (value && value.type === 'Buffer' && Array.isArray(value.data)) {
-                    return '[Buffer Data]';
-                }
+                if (value?.type === 'Buffer' && Array.isArray(value.data)) return '[Buffer Data]';
                 return value;
             }, 2));
         } catch (e) {
-            console.error('  Could not stringify full error object for logging:', e.message);
+            console.error('  Could not stringify full error object:', e.message);
         }
 
-        res.status(500).json({ error: errorMessage.trim() });
+        return res.status(500).json({ error: errorMessage.trim() });
     }
 });
+
+
 
 // Start the server
 app.listen(port, () => {

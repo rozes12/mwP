@@ -500,8 +500,9 @@ app.post('/generate-responses', async (req, res) => {
     }
 
     // DEBUG log before API call
-    console.log('DEBUG: Constructed contentParts for /generate-responses:', JSON.stringify(contentParts, null, 2));
-
+    // console.log('DEBUG: Constructed contentParts for /generate-responses:', JSON.stringify(contentParts, null, 2));
+console.log('DEBUG: Constructed contentParts (SIMPLE):', JSON.stringify(contentParts));
+// This forces the JSON output onto a single line.
     const newResults = {};
     const promises = [];
 

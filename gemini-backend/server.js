@@ -460,6 +460,9 @@ app.post('/generate-responses', async (req, res) => {
     const newResults = {};
     const promises = [];
 
+      console.log('DEBUG: Constructed contentParts for /extract-keywords:', JSON.stringify(contentParts, null, 2));
+
+
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
             promises.push(
@@ -512,6 +515,9 @@ app.post('/summarize', async (req, res) => {
     const newResults = {};
     const promises = [];
 
+      console.log('DEBUG: Constructed contentParts for /extract-keywords:', JSON.stringify(contentParts, null, 2));
+
+
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
             promises.push(
@@ -563,6 +569,8 @@ app.post('/expand', async (req, res) => {
 
     const newResults = {};
     const promises = [];
+      console.log('DEBUG: Constructed contentParts for /extract-keywords:', JSON.stringify(contentParts, null, 2));
+
 
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
@@ -614,6 +622,8 @@ app.post('/extract-keywords', async (req, res) => {
 
     const newResults = {};
     const promises = [];
+    
+      console.log('DEBUG: Constructed contentParts for /extract-keywords:', JSON.stringify(contentParts, null, 2));
 
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {

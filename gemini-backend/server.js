@@ -340,7 +340,7 @@ app.use(express.json({ limit: '50mb' })); // Allows larger request bodies for Ba
 
 // --- MODIFIED: Initialize Vertex AI models ---
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID; // Your Google Cloud Project ID
-const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1'; // The region where your Vertex AI models are deployed
+const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'global'; // The region where your Vertex AI models are deployed
 
 if (!PROJECT_ID) {
     console.error("GOOGLE_CLOUD_PROJECT_ID not found in environment variables. Please set it in your .env file.");

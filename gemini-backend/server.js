@@ -697,7 +697,7 @@ const port = process.env.PORT || 8080; // Use PORT from environment or default t
 
 // Initialize Vertex AI with project and location from environment variables
 // IMPORTANT: Using GOOGLE_CLOUD_PROJECT as it's the standard env var for project ID
-const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT;
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID;
 // Ensure this location matches what your models support and what you've tested with curl
 const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 

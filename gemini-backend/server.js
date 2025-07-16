@@ -687,6 +687,7 @@
 
 
 
+
 require('dotenv').config(); // Load environment variables from .env file
 const express = require('express');
 const cors = require('cors');
@@ -1047,16 +1048,26 @@ app.post('/generate-image', async (req, res) => {
             console.error(`  Error Status: ${error.status}`);
             errorMessage += ` Status: ${error.status}.`;
         }
-        if (error.metadata && typeof error.metadata.get === 'function') {
-            const metadataKeys = Array.from(error.metadata.keys());
-            if (metadataKeys.length > 0) {
-                console.error('  Error Metadata:');
-                metadataKeys.forEach(key => {
-                    const values = error.metadata.get(key);
-                    console.error(`    ${key}: ${values.join(', ')}`);
-                });
+        // --- MODIFIED: Safely check and log metadata ---
+        if (error.metadata) {
+            if (typeof error.metadata.get === 'function') { // Check if it's a Map-like object
+                const metadataKeys = Array.from(error.metadata.keys());
+                if (metadataKeys.length > 0) {
+                    console.error('  Error Metadata (Map-like):');
+                    metadataKeys.forEach(key => {
+                        const values = error.metadata.get(key);
+                        console.error(`    ${key}: ${values.join(', ')}`);
+                    });
+                }
+            } else { // It's a plain object or other type
+                try {
+                    console.error('  Error Metadata (Plain Object):', JSON.stringify(error.metadata, null, 2));
+                } catch (e) {
+                    console.error('  Could not stringify metadata:', e.message);
+                }
             }
         }
+        // --- END MODIFIED ---
         
         // As a last resort, still try to stringify the whole error, but explicitly
         // mention it might be truncated or contain binary data.

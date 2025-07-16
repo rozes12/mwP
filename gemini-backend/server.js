@@ -318,6 +318,7 @@
 
 // gemini-backend/server.js
 require('dotenv').config(); // Load environment variables from .env file
+console.log('*** SERVER INITIALIZATION CONFIRMATION ***');
 const express = require('express');
 const cors = require('cors');
 const { VertexAI } = require('@google-cloud/vertexai');

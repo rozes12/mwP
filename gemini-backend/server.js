@@ -439,6 +439,23 @@ app.post('/generate-responses', async (req, res) => {
     console.log(`DEBUG: Is req.body empty object?: ${typeof req.body === 'object' && Object.keys(req.body).length === 0}`); // Is it just an empty object?
 
     const { prompt, selectedModels, imageData } = req.body; // Destructuring happens here
+    // / --- START: Put the DEBUG logs here ---
+    console.log(`DEBUG: Raw Prompt Value (START):'${prompt}'(END)`);
+    console.log(`DEBUG: Raw Prompt Type: ${typeof prompt}`);
+    if (typeof prompt === 'string') {
+        console.log(`DEBUG: Raw Prompt Length: ${prompt.length}`);
+        if (prompt.length > 0) {
+            console.log(`DEBUG: Raw Prompt Last CharCode: ${prompt.charCodeAt(prompt.length - 1)}`);
+        }
+        console.log(`DEBUG: Raw Prompt JSON.stringify: ${JSON.stringify(prompt)}`);
+    }
+    console.log(`DEBUG: Raw ImageData (present): ${!!imageData}`);
+    if (typeof imageData === 'string') {
+        console.log(`DEBUG: ImageData MimeType Prefix: ${imageData.substring(0, 30)}...`);
+    } else {
+        console.log(`DEBUG: Raw ImageData Type: ${typeof imageData}`);
+    }
+    // --- END: Put the DEBUG logs here ---
 
     console.log(`DEBUG: Raw Prompt Value: '${prompt}'`); // Log prompt directly
     console.log(`DEBUG: Raw Prompt Type: ${typeof prompt}`); // Log type of prompt

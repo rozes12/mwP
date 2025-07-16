@@ -685,6 +685,8 @@
 // });
 
 
+
+
 require('dotenv').config(); // Load environment variables from .env file
 const express = require('express');
 const cors = require('cors');
@@ -1001,13 +1003,11 @@ app.post('/generate-image', async (req, res) => {
     const endpoint = `projects/${PROJECT_ID}/locations/${location}/publishers/${publisher}/models/${modelId}`;
 
     // Request payload for Imagen 3.0 via Vertex AI SDK
-    // The client library handles conversion of plain JS objects to protobuf Value.
     const instance = { prompt: prompt };
     const parameters = { sampleCount: 1 }; // Requesting one image
 
     try {
         console.log(`Attempting to generate image for prompt: "${prompt}"`);
-        // Call the Vertex AI Prediction Service Client
         const [response] = await predictionClient.predict({
             endpoint,
             instances: [instance],
@@ -1015,13 +1015,10 @@ app.post('/generate-image', async (req, res) => {
         });
 
         if (response && response.predictions && response.predictions.length > 0) {
-            // The client library usually returns a plain JS object from the protobuf Value.
-            // Access bytesBase64Encoded directly from the prediction.
             const predictionValue = response.predictions[0];
 
             if (predictionValue && predictionValue.bytesBase64Encoded) {
                 const base64Data = predictionValue.bytesBase64Encoded;
-                // Construct the data URL to send back to the frontend (assuming PNG output)
                 const imageUrl = `data:image/png;base64,${base64Data}`;
                 console.log('Image generated successfully.');
                 res.json({ imageUrl: imageUrl });
@@ -1034,17 +1031,49 @@ app.post('/generate-image', async (req, res) => {
             res.status(500).json({ error: 'Image generation failed: No predictions returned.' });
         }
     } catch (error) {
-        console.error('Error generating image with Imagen API:', error);
+        console.error('Error generating image with Imagen API:', error.message || 'Unknown error');
         let errorMessage = 'Failed to generate image.';
-        if (error.details) { // Vertex AI client errors often provide 'details'
-            errorMessage = `Imagen API Error: ${error.details}`;
-        } else if (error.message) {
-            errorMessage = `Error: ${error.message}`;
+
+        // Log specific error properties if they exist
+        if (error.code) { // e.g., 3 for INVALID_ARGUMENT
+            console.error(`  Error Code: ${error.code}`);
+            errorMessage += ` Code: ${error.code}.`;
         }
-        // --- NEW: Log the full error object for detailed debugging ---
-        console.error('Full Imagen API error object:', JSON.stringify(error, null, 2));
-        // --- END NEW ---
-        res.status(500).json({ error: errorMessage });
+        if (error.details) { // Detailed message from API
+            console.error(`  Error Details: ${error.details}`);
+            errorMessage += ` Details: ${error.details}.`;
+        }
+        if (error.status) { // Status string (e.g., 'INVALID_ARGUMENT')
+            console.error(`  Error Status: ${error.status}`);
+            errorMessage += ` Status: ${error.status}.`;
+        }
+        if (error.metadata && typeof error.metadata.get === 'function') {
+            const metadataKeys = Array.from(error.metadata.keys());
+            if (metadataKeys.length > 0) {
+                console.error('  Error Metadata:');
+                metadataKeys.forEach(key => {
+                    const values = error.metadata.get(key);
+                    console.error(`    ${key}: ${values.join(', ')}`);
+                });
+            }
+        }
+        
+        // As a last resort, still try to stringify the whole error, but explicitly
+        // mention it might be truncated or contain binary data.
+        try {
+            console.error('  Full Error Object (might be truncated/contain binary data):');
+            console.error(JSON.stringify(error, (key, value) => {
+                // Custom replacer to avoid huge Buffer data
+                if (value && value.type === 'Buffer' && Array.isArray(value.data)) {
+                    return '[Buffer Data]';
+                }
+                return value;
+            }, 2));
+        } catch (e) {
+            console.error('  Could not stringify full error object:', e.message);
+        }
+
+        res.status(500).json({ error: errorMessage.trim() });
     }
 });
 // --- END NEW ENDPOINT ---

@@ -717,7 +717,7 @@ const GENERATIVE_MODELS = {
 };
 
 // Define the Imagen model for image generation
-const IMAGEN_MODEL = vertexAI.getPredictionModel('imagen-3.0-generate-002'); // Use getPredictionModel for Imagen
+// const IMAGEN_MODEL = vertexAI.getPredictionModel('imagen-3.0-generate-002'); // Use getPredictionModel for Imagen
 
 // --- Helper function for image conversion (for sending images to Gemini) ---
 function fileToGenerativePart(base64EncodedImage, mimeType = 'image/jpeg') {
@@ -961,51 +961,51 @@ app.post('/extract-keywords', async (req, res) => {
 });
 
 // NEW: Endpoint for generating images using Imagen (imagen-3.0-generate-002)
-app.post('/generate-image', async (req, res) => {
-    const { prompt } = req.body;
+// app.post('/generate-image', async (req, res) => {
+//     const { prompt } = req.body;
 
-    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-        console.warn('Invalid prompt received for /generate-image');
-        return res.status(400).json({ error: 'Valid prompt is required for image generation.' });
-    }
+//     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+//         console.warn('Invalid prompt received for /generate-image');
+//         return res.status(400).json({ error: 'Valid prompt is required for image generation.' });
+//     }
 
-    try {
-        console.log(`DEBUG: Calling Imagen model with prompt: "${prompt}"`);
+//     try {
+//         console.log(`DEBUG: Calling Imagen model with prompt: "${prompt}"`);
 
-        // Imagen API payload structure
-        const request = {
-            instances: [{ prompt: prompt }],
-            parameters: {
-                sampleCount: 1, // Requesting one image
-                // Add other parameters if needed, e.g., seed, aspect ratio, guidance_scale, etc.
-                // See Imagen documentation for full list of parameters.
-            },
-        };
+//         // Imagen API payload structure
+//         const request = {
+//             instances: [{ prompt: prompt }],
+//             parameters: {
+//                 sampleCount: 1, // Requesting one image
+//                 // Add other parameters if needed, e.g., seed, aspect ratio, guidance_scale, etc.
+//                 // See Imagen documentation for full list of parameters.
+//             },
+//         };
 
-        const response = await IMAGEN_MODEL.predict(request);
+//         const response = await IMAGEN_MODEL.predict(request);
 
-        if (response && response.predictions && response.predictions.length > 0 && response.predictions[0].bytesBase64Encoded) {
-            const imageDataBase64 = response.predictions[0].bytesBase64Encoded;
-            // Prepend data URL prefix for direct use in <img> tag
-            const imageUrl = `data:image/png;base64,${imageDataBase64}`;
-            console.log('DEBUG: Image successfully generated and base64 data received.');
-            res.json({ imageUrl: imageUrl });
-        } else {
-            console.error('Imagen API response did not contain expected image data:', JSON.stringify(response));
-            res.status(500).json({ error: 'Image generation failed: No image data returned.' });
-        }
+//         if (response && response.predictions && response.predictions.length > 0 && response.predictions[0].bytesBase64Encoded) {
+//             const imageDataBase64 = response.predictions[0].bytesBase64Encoded;
+//             // Prepend data URL prefix for direct use in <img> tag
+//             const imageUrl = `data:image/png;base64,${imageDataBase64}`;
+//             console.log('DEBUG: Image successfully generated and base64 data received.');
+//             res.json({ imageUrl: imageUrl });
+//         } else {
+//             console.error('Imagen API response did not contain expected image data:', JSON.stringify(response));
+//             res.status(500).json({ error: 'Image generation failed: No image data returned.' });
+//         }
 
-    } catch (error) {
-        console.error('Error generating image with Imagen API:', error);
-        let errorMessage = 'Failed to generate image. Please check the prompt or try again later.';
-        if (error.code === 400) {
-            errorMessage = `Invalid request to Imagen API: ${error.message}`;
-        } else if (error.code === 403) {
-            errorMessage = `Permission denied for Imagen API. Check Vertex AI API enablement and service account permissions.`;
-        }
-        res.status(500).json({ error: errorMessage });
-    }
-});
+//     } catch (error) {
+//         console.error('Error generating image with Imagen API:', error);
+//         let errorMessage = 'Failed to generate image. Please check the prompt or try again later.';
+//         if (error.code === 400) {
+//             errorMessage = `Invalid request to Imagen API: ${error.message}`;
+//         } else if (error.code === 403) {
+//             errorMessage = `Permission denied for Imagen API. Check Vertex AI API enablement and service account permissions.`;
+//         }
+//         res.status(500).json({ error: errorMessage });
+//     }
+// });
 
 
 // Start the server

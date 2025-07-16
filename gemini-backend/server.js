@@ -332,7 +332,7 @@ const port = process.env.PORT || 8080; // Changed to 8080 for Cloud Run compatib
 // Middleware
 // Configure CORS to only allow requests from your frontend's origin
 app.use(cors({
-    origin: ['https://minwebfront-343717256329.us-central1.run.app', 'http:localhost8080']
+    origin: ['https://minwebfront-343717256329.us-central1.run.app', 'http://localhost:8080']
 }));
 // --- MODIFIED: Increase JSON body limit for image data ---
 app.use(express.json({ limit: '50mb' })); // Allows larger request bodies for Base64 images

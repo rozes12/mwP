@@ -317,46 +317,47 @@
 
 
 
-
 // gemini-backend/server.js
 require('dotenv').config(); // Load environment variables from .env file
 const express = require('express');
 const cors = require('cors');
-// --- MODIFIED: Import VertexAI from @google-cloud/vertexai ---
 const { VertexAI } = require('@google-cloud/vertexai');
-// --- END MODIFIED ---
 
 const app = express();
-const port = process.env.PORT || 8080; // Changed to 8080 for Cloud Run compatibility
+const port = process.env.PORT || 8080;
 
 // Middleware
 // Configure CORS to only allow requests from your frontend's origin
 app.use(cors({
     origin: ['https://minwebfront-343717256329.us-central1.run.app', 'http://localhost:8080']
 }));
-// --- MODIFIED: Increase JSON body limit for image data ---
 app.use(express.json({ limit: '50mb' })); // Allows larger request bodies for Base64 images
-// --- END MODIFIED ---
 
-// --- MODIFIED: Initialize Vertex AI models ---
-const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID; // Your Google Cloud Project ID
-const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'global'; // The region where your Vertex AI models are deployed
+// --- UPDATED: Initialize Vertex AI models with a consistent location ---
+// Based on search, us-central1 supports all desired models (or globally)
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID;
+const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1' || 'global'; // STICKING TO us-central1 for now
+
+console.log(`Initializing Vertex AI with Project ID: ${PROJECT_ID} and Location: ${LOCATION}`);
 
 if (!PROJECT_ID) {
     console.error("GOOGLE_CLOUD_PROJECT_ID not found in environment variables. Please set it in your .env file.");
     process.exit(1);
 }
 
-// Initialize Vertex AI
 const vertexAI = new VertexAI({ project: PROJECT_ID, location: LOCATION });
 
-// Define your three Gemini models with CURRENT, STABLE model IDs for Vertex AI
+// --- UPDATED: Define your Gemini models with confirmed, specific IDs for Vertex AI ---
 const MODELS = {
+    // gemini-2.5-flash is GA and supported in us-central1, use base name
     'gemini-2.5-flash': vertexAI.getGenerativeModel({ model: 'gemini-2.5-flash' }),
+    // gemini-2.5-pro is GA and supported in us-central1, use base name
     'gemini-2.5-pro': vertexAI.getGenerativeModel({ model: 'gemini-2.5-pro' }),
-    'gemini-1.5-flash': vertexAI.getGenerativeModel({ model: 'gemini-1.5-flash' }),
+    // gemini-1.5-flash requires the specific version -002
+    'gemini-1.5-flash': vertexAI.getGenerativeModel({ model: 'gemini-1.5-flash-002' }),
 };
-// --- END MODIFIED ---
+// --- END UPDATED MODEL INITIALIZATION ---
+
 
 // --- NEW HELPER FUNCTION FOR IMAGE PROCESSING ---
 /**
@@ -367,25 +368,29 @@ const MODELS = {
  */
 function fileToGenerativePart(imageData) {
     if (!imageData || typeof imageData !== 'string') {
+        console.warn('fileToGenerativePart: No valid image data string provided.');
         return null; // No valid image data provided
     }
 
     // Split the data URL to get mimeType and base64Data
     const parts = imageData.split(',');
     if (parts.length !== 2) {
-        console.warn('Invalid image data format. Expected a data URL with a comma.');
+        console.warn('fileToGenerativePart: Invalid image data format. Expected a data URL with a comma.');
         return null;
     }
 
-    const mimeTypePart = parts[0];
-    const base64Data = parts[1];
+    const mimeTypePart = parts[0]; // e.g., "data:image/png;base64"
+    const base64Data = parts[1];   // e.g., "iVBORw0KGgoAAAANSUhEU..."
 
     const mimeMatch = mimeTypePart.match(/^data:(.*?);base64$/);
     if (!mimeMatch || mimeMatch.length < 2) {
-        console.warn('Could not extract MIME type from image data.');
+        console.warn('fileToGenerativePart: Could not extract MIME type from image data.');
         return null;
     }
-    const mimeType = mimeMatch[1];
+    const mimeType = mimeMatch[1]; // e.g., "image/png"
+
+    // Optional: Add a log to see the parsed image data details
+    // console.log(`fileToGenerativePart: Parsed MIME Type: ${mimeType}, Base64 Data Length: ${base64Data.length}`);
 
     return {
         inlineData: {
@@ -395,6 +400,7 @@ function fileToGenerativePart(imageData) {
     };
 }
 // --- END NEW HELPER ---
+
 
 /**
  * Generic function to call the Gemini API on the backend.
@@ -406,8 +412,12 @@ function fileToGenerativePart(imageData) {
 const callGeminiApiBackend = async (modelName, contentParts) => {
     const modelInstance = MODELS[modelName];
     if (!modelInstance) {
+        console.error(`Error: Model '${modelName}' is not configured on the backend.`);
         return `Error: Model '${modelName}' is not configured on the backend.`;
     }
+
+    // Add a log right before calling the model API
+    console.log(`DEBUG: Calling ${modelName}.generateContent with contentParts:`, JSON.stringify(contentParts, null, 2));
 
     try {
         const result = await modelInstance.generateContent(contentParts);
@@ -427,9 +437,11 @@ app.post('/generate-responses', async (req, res) => {
     const { prompt, selectedModels, imageData } = req.body;
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+        console.warn('Invalid prompt received for /generate-responses');
         return res.status(400).json({ error: 'Valid prompt is required.' });
     }
-    if (!selectedModels || typeof selectedModels !== 'object') {
+    if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
+        console.warn('No models selected for /generate-responses');
         return res.status(400).json({ error: 'Selected models are required.' });
     }
 
@@ -437,18 +449,18 @@ app.post('/generate-responses', async (req, res) => {
     if (imageData) {
         const imagePart = fileToGenerativePart(imageData);
         if (imagePart) {
-            contentParts.unshift(imagePart);
+            contentParts.unshift(imagePart); // Add image part at the beginning
         } else {
+            console.error('Invalid image data provided for /generate-responses after fileToGenerativePart');
             return res.status(400).json({ error: 'Invalid image data provided.' });
         }
     }
 
+    // DEBUG log before API call
+    console.log('DEBUG: Constructed contentParts for /generate-responses:', JSON.stringify(contentParts, null, 2));
+
     const newResults = {};
     const promises = [];
-
-    // ---- ADD THIS LINE ----
-    console.log('DEBUG: Constructed contentParts:', JSON.stringify(contentParts, null, 2));
-    // -----------------------
 
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
@@ -466,7 +478,7 @@ app.post('/generate-responses', async (req, res) => {
         await Promise.allSettled(promises);
         res.json(newResults);
     } catch (error) {
-        console.error('Error in /generate-responses endpoint:', error);
+        console.error('Error in /generate-responses endpoint during Promise.allSettled:', error);
         res.status(500).json({ error: 'Failed to generate responses from models.' });
     }
 });
@@ -476,9 +488,11 @@ app.post('/summarize', async (req, res) => {
     const { prompt, selectedModels, imageData } = req.body;
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+        console.warn('Invalid prompt received for /summarize');
         return res.status(400).json({ error: 'Valid prompt is required.' });
     }
-    if (!selectedModels || typeof selectedModels !== 'object') {
+    if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
+        console.warn('No models selected for /summarize');
         return res.status(400).json({ error: 'Selected models are required.' });
     }
 
@@ -489,9 +503,13 @@ app.post('/summarize', async (req, res) => {
         if (imagePart) {
             contentParts.unshift(imagePart);
         } else {
+            console.error('Invalid image data provided for /summarize after fileToGenerativePart');
             return res.status(400).json({ error: 'Invalid image data provided.' });
         }
     }
+
+    // DEBUG log before API call
+    console.log('DEBUG: Constructed contentParts for /summarize:', JSON.stringify(contentParts, null, 2));
 
     const newResults = {};
     const promises = [];
@@ -512,7 +530,7 @@ app.post('/summarize', async (req, res) => {
         await Promise.allSettled(promises);
         res.json(newResults);
     } catch (error) {
-        console.error('Error in /summarize endpoint:', error);
+        console.error('Error in /summarize endpoint during Promise.allSettled:', error);
         res.status(500).json({ error: 'Failed to generate summaries from models.' });
     }
 });
@@ -522,9 +540,11 @@ app.post('/expand', async (req, res) => {
     const { prompt, selectedModels, imageData } = req.body;
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+        console.warn('Invalid prompt received for /expand');
         return res.status(400).json({ error: 'Valid prompt is required.' });
     }
-    if (!selectedModels || typeof selectedModels !== 'object') {
+    if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
+        console.warn('No models selected for /expand');
         return res.status(400).json({ error: 'Selected models are required.' });
     }
 
@@ -535,9 +555,13 @@ app.post('/expand', async (req, res) => {
         if (imagePart) {
             contentParts.unshift(imagePart);
         } else {
+            console.error('Invalid image data provided for /expand after fileToGenerativePart');
             return res.status(400).json({ error: 'Invalid image data provided.' });
         }
     }
+
+    // DEBUG log before API call
+    console.log('DEBUG: Constructed contentParts for /expand:', JSON.stringify(contentParts, null, 2));
 
     const newResults = {};
     const promises = [];
@@ -558,7 +582,7 @@ app.post('/expand', async (req, res) => {
         await Promise.allSettled(promises);
         res.json(newResults);
     } catch (error) {
-        console.error('Error in /expand endpoint:', error);
+        console.error('Error in /expand endpoint during Promise.allSettled:', error);
         res.status(500).json({ error: 'Failed to generate expansions from models.' });
     }
 });
@@ -567,9 +591,11 @@ app.post('/extract-keywords', async (req, res) => {
     const { prompt, selectedModels, imageData } = req.body;
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+        console.warn('Invalid prompt received for /extract-keywords');
         return res.status(400).json({ error: 'Text to extract keywords from is required.' });
     }
     if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
+        console.warn('No models selected for /extract-keywords');
         return res.status(400).json({ error: 'At least one model must be selected for keyword extraction.' });
     }
 
@@ -580,9 +606,13 @@ app.post('/extract-keywords', async (req, res) => {
         if (imagePart) {
             contentParts.unshift(imagePart);
         } else {
+            console.error('Invalid image data provided for /extract-keywords after fileToGenerativePart');
             return res.status(400).json({ error: 'Invalid image data provided.' });
         }
     }
+
+    // DEBUG log before API call
+    console.log('DEBUG: Constructed contentParts for /extract-keywords:', JSON.stringify(contentParts, null, 2));
 
     const newResults = {};
     const promises = [];
@@ -590,7 +620,6 @@ app.post('/extract-keywords', async (req, res) => {
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
             promises.push(
-                // --- MODIFIED: Ensure contentParts is passed here as well ---
                 callGeminiApiBackend(modelName, contentParts)
                     .then(output => newResults[modelName] = output)
                     .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
@@ -604,7 +633,7 @@ app.post('/extract-keywords', async (req, res) => {
         await Promise.allSettled(promises);
         res.json(newResults);
     } catch (error) {
-        console.error('Error in /extract-keywords endpoint:', error);
+        console.error('Error in /extract-keywords endpoint during Promise.allSettled:', error);
         res.status(500).json({ error: 'Failed to extract keywords from models.' });
     }
 });

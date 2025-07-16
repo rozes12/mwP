@@ -803,7 +803,7 @@ function App() {
                 </div>
 
                 {/* Flippable Container */}
-                <div className={`relative w-full h-auto min-h-[50vh] transition-transform duration-700 ease-in-out preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+                <div className={`relative w-full h-auto min-h-[80vh] transition-transform duration-700 ease-in-out preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
                     {/* Front Side: Text AI Tools */}
                     <div className={`absolute w-full h-full backface-hidden p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20 ${isFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'}`}>
                         {!isFlipped && (

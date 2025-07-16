@@ -433,6 +433,7 @@ const callGeminiApiBackend = async (modelName, contentParts) => {
 
 // Main endpoint to handle requests for multiple models
 app.post('/generate-responses', async (req, res) => {
+    console.log('DEBUG: Full Request Body:', JSON.stringify(req.body, null, 2));
     const { prompt, selectedModels, imageData } = req.body;
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {

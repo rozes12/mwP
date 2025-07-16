@@ -1337,7 +1337,7 @@ function App() {
         }
     };
 
-    // UPDATED: Function to generate an image using the Imagen 4.0 model via backend
+    // Function to generate an image using the Imagen 4.0 model via backend
     const generateImageViaBackend = async () => {
         if (!imageGenPrompt.trim()) {
             setResults({ error: 'Please enter a prompt for image generation.' });
@@ -1367,7 +1367,7 @@ function App() {
         <div className="min-h-screen flex flex-col items-center py-8 px-4 sm:px-6 lg:px-8
                         bg-retro-swirl-animated bg-repeat bg-fixed bg-cover
                         text-light-text font-sans overflow-x-hidden">
-            <div className="max-w-4xl w-full space-y-8 p-6 bg-dark-background/80 backdrop-blur-sm rounded-xl shadow-2xl border border-funky-purple/30"> {/* Removed overflow-hidden */}
+            <div className="max-w-4xl w-full space-y-8 p-6 bg-dark-background/80 backdrop-blur-sm rounded-xl shadow-2xl border border-funky-purple/30">
 
                 <h1 className="text-4xl sm:text-5xl font-extrabold text-center text-funky-cyan mb-8 tracking-wide drop-shadow-lg">
                     {isFlipped ? '🖼️ Imagen Generator 🚀' : '✨ Gemini Fun-House AI ✨'}
@@ -1584,7 +1584,7 @@ function App() {
 
                                 {/* Generated Image Display */}
                                 {generatedImageUrl && (
-                                    <div className="mt-8 p-4 bg-dark-background/40 rounded-lg border border-funky-cyan/30 shadow-inner flex flex-col items-center">
+                                    <div className="mt-8 p-4 bg-dark-background/40 rounded-lg border border-funky-cyan/30 shadow-inner flex flex-col items-center w-full max-w-full max-h-[70vh] overflow-y-auto"> {/* Added w-full, max-w-full, max-h-[70vh], overflow-y-auto */}
                                         <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50 w-full text-center">
                                             Your Creation:
                                         </h3>

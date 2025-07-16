@@ -317,16 +317,13 @@
 
 
 
-
-
-
 require('dotenv').config(); // Load environment variables from .env file
 const express = require('express');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 // --- NEW: Import Vertex AI client for Imagen 3.0 ---
 const { PredictionServiceClient } = require('@google-cloud/aiplatform');
-const { helpers } = require('@google-cloud/aiplatform/build/protos/google/cloud/aiplatform/v1beta1/PredictionService');
+// Removed: const { helpers } = require('@google-cloud/aiplatform/build/protos/google/cloud/aiplatform/v1beta1/PredictionService');
 // --- END NEW ---
 
 const app = express();
@@ -637,8 +634,9 @@ app.post('/generate-image', async (req, res) => {
     const endpoint = `projects/${PROJECT_ID}/locations/${location}/publishers/${publisher}/models/${modelId}`;
 
     // Request payload for Imagen 3.0 via Vertex AI SDK
-    const instance = helpers.toValue({ prompt: prompt });
-    const parameters = helpers.toValue({ sampleCount: 1 }); // Requesting one image
+    // The client library handles conversion of plain JS objects to protobuf Value.
+    const instance = { prompt: prompt };
+    const parameters = { sampleCount: 1 }; // Requesting one image
 
     try {
         console.log(`Attempting to generate image for prompt: "${prompt}"`);
@@ -650,9 +648,9 @@ app.post('/generate-image', async (req, res) => {
         });
 
         if (response && response.predictions && response.predictions.length > 0) {
-            // Imagen typically returns the base64 encoded image in the 'bytesBase64Encoded' field
-            // within the value of the prediction.
-            const predictionValue = helpers.fromValue(response.predictions[0]);
+            // The client library usually returns a plain JS object from the protobuf Value.
+            // Access bytesBase64Encoded directly from the prediction.
+            const predictionValue = response.predictions[0];
 
             if (predictionValue && predictionValue.bytesBase64Encoded) {
                 const base64Data = predictionValue.bytesBase64Encoded;

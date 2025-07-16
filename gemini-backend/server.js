@@ -1351,18 +1351,10 @@ app.post('/generate-image', async (req, res) => {
     try {
         console.log(`Attempting to generate image using Gemini 2.0 Flash for prompt: "${prompt}"`);
         
-        const generationConfig = {
-            // Explicitly requesting application/json as the response MIME type
-            // The model will then structure its multimodal output (text & image) within this JSON
-            responseMimeType: "application/json", 
-            responseSchema: { // Define a schema to expect specific fields for text and image
-                type: "OBJECT",
-                properties: {
-                    generated_text: { type: "STRING" }, // For any accompanying text
-                    generated_image_data: { type: "STRING" } // For the Base64 image data
-                }
-            }
-        };
+        // Removed responseMimeType and responseSchema from generationConfig
+        // The model `gemini-2.0-flash-preview-image-generation` does not support JSON mode.
+        // It outputs TEXT and IMAGE parts directly.
+        const generationConfig = {}; 
 
         const safetySettings = [
             { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
@@ -1378,31 +1370,30 @@ app.post('/generate-image', async (req, res) => {
         });
 
         const response = await result.response;
-        const responseText = response.text(); // Get the raw text response (which should be JSON)
         
-        let parsedResponse;
-        try {
-            parsedResponse = JSON.parse(responseText); // Parse the JSON string
-        } catch (parseError) {
-            console.error('Failed to parse model response as JSON:', parseError);
-            res.status(500).json({ error: 'Image generation failed: Invalid JSON response from model.' });
-            return;
-        }
+        // Find the image part and the text part (if any) from the response candidates
+        const candidate = response.candidates[0];
 
-        // Now, extract the image data from the parsed JSON object
-        const base64Data = parsedResponse.generated_image_data;
-        const textOutput = parsedResponse.generated_text;
+        if (candidate && candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
+            const imagePart = candidate.content.parts.find(part => part.inlineData && part.inlineData.mimeType.startsWith('image/'));
+            const textPart = candidate.content.parts.find(part => part.text); // Find the text part
 
-        if (base64Data) {
-            // Assuming image/png as a common output, but ideally the model would indicate type
-            // For now, hardcoding image/png, but a real model might return different types.
-            // If the model actually outputs base64 in the JSON, it's usually already PNG or JPEG.
-            const imageUrl = `data:image/png;base64,${base64Data}`; 
-            console.log('Image generated successfully by Gemini 2.0 Flash.');
-            res.json({ imageUrl: imageUrl, textOutput: textOutput }); // Also return text output if any
+            if (imagePart && imagePart.inlineData && imagePart.inlineData.data) {
+                const base64Data = imagePart.inlineData.data;
+                const imageUrl = `data:${imagePart.inlineData.mimeType};base64,${base64Data}`;
+                const textOutput = textPart ? textPart.text : ''; // Extract text or set empty string
+                
+                console.log('Image generated successfully by Gemini 2.0 Flash.');
+                res.json({ imageUrl: imageUrl, textOutput: textOutput }); // Return both image URL and any text
+            } else {
+                console.warn('Gemini 2.0 Flash did not return an image part, or image data was invalid. It might have returned only text or blocked due to safety.');
+                const textOutput = textPart ? textPart.text : 'No image or readable text output from model.';
+                // Return 200 OK even if no image, but indicate failure in message or specific flag
+                res.status(500).json({ error: `Image generation failed: ${textOutput}` });
+            }
         } else {
-            console.warn('Gemini 2.0 Flash returned JSON but no image data found in `generated_image_data`.');
-            res.status(500).json({ error: `Image generation failed: No image data returned. Model output: ${textOutput || 'N/A'}` });
+            console.error('Gemini 2.0 Flash response did not contain valid content or candidates:', response);
+            res.status(500).json({ error: 'Image generation failed: No content or candidates returned.' });
         }
     } catch (error) {
         console.error('Error generating image with Gemini API:', error);
@@ -1422,6 +1413,7 @@ app.post('/generate-image', async (req, res) => {
         }
         
         try {
+            // Safely stringify the error object for logging, handling Buffers
             console.error('  Full Error Object:', JSON.stringify(error, (key, value) => {
                 if (value && value.type === 'Buffer' && Array.isArray(value.data)) {
                     return '[Buffer Data]';

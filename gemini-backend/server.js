@@ -1362,21 +1362,22 @@ app.post('/generate-image', async (req, res) => {
         ];
 
         // Modify the prompt to explicitly ask for both an image and text
-        // const multimodalPrompt = `Generate an image based on the following description: "${prompt}". Also, provide a short textual description of the generated image.`;
-           const multimodalPrompt = `Generate an image based on the following description: "${prompt}".`;
+        const multimodalPrompt = `Generate an image based on the following description: "${prompt}". Also, provide a short textual description of the generated image.`;
+        //    const multimodalPrompt = `Generate an image based on the following description: "${prompt}".`;
 
         const result = await modelInstance.generateContent({
-            // contents: [{ role: "user", parts: [{ text: multimodalPrompt }] }],
-            contents: [
-  {
-    role: "user",
-    parts: [{ text: prompt }]
-  }
-],
+    contents: [{ role: "user", parts: [{ text: multimodalPrompt }] }],
+    generationConfig,
+    safetySettings,
+    responseMimeType: ['image/png', 'text/plain']  // ✅ This fixes the 400 error
+});
+        // const result = await modelInstance.generateContent({
+        //     contents: [{ role: "user", parts: [{ text: multimodalPrompt }] }],
+            
 
-            generationConfig,
-            safetySettings,
-        });
+        //     generationConfig,
+        //     safetySettings,
+        // });
 
         const response = await result.response;
         

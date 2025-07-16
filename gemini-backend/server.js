@@ -1050,7 +1050,8 @@ app.post('/generate-image', async (req, res) => {
         }
         // --- MODIFIED: Safely check and log metadata ---
         if (error.metadata) {
-            if (typeof error.metadata.get === 'function') { // Check if it's a Map-like object
+            // Check if it's an instance of Map (common for grpc errors)
+            if (error.metadata instanceof Map) {
                 const metadataKeys = Array.from(error.metadata.keys());
                 if (metadataKeys.length > 0) {
                     console.error('  Error Metadata (Map-like):');
@@ -1059,12 +1060,16 @@ app.post('/generate-image', async (req, res) => {
                         console.error(`    ${key}: ${values.join(', ')}`);
                     });
                 }
-            } else { // It's a plain object or other type
+            } else if (typeof error.metadata === 'object' && error.metadata !== null) {
+                // If it's a plain object, stringify it
                 try {
                     console.error('  Error Metadata (Plain Object):', JSON.stringify(error.metadata, null, 2));
                 } catch (e) {
-                    console.error('  Could not stringify metadata:', e.message);
+                    console.error('  Could not stringify metadata (plain object):', e.message);
                 }
+            } else {
+                // For other types, just log directly
+                console.error('  Error Metadata (Other Type):', error.metadata);
             }
         }
         // --- END MODIFIED ---

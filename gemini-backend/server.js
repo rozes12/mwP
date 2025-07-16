@@ -718,6 +718,14 @@ const GENERATIVE_MODELS = {
 
 // Define the Imagen model for image generation
 // const IMAGEN_MODEL = vertexAI.getPredictionModel('imagen-3.0-generate-002'); // Use getPredictionModel for Imagen
+// Define Imagen 4.0 models for the backend API calls
+const IMAGEN_4_MODELS = {
+    'standard': 'imagen-4.0-generate-preview-06-06', // Use the latest preview if available
+    'ultra': 'imagen-4.0-ultra-generate-preview-06-06',
+    'fast': 'imagen-4.0-fast-generate-preview-06-06'
+};
+
+
 
 // --- Helper function for image conversion (for sending images to Gemini) ---
 function fileToGenerativePart(base64EncodedImage, mimeType = 'image/jpeg') {
@@ -1006,6 +1014,74 @@ app.post('/extract-keywords', async (req, res) => {
 //         res.status(500).json({ error: errorMessage });
 //     }
 // });
+
+// NEW: Endpoint for Imagen 4.0 Image Generation
+app.post('/generate-image', async (req, res) => {
+    const { prompt, modelType = 'standard' } = req.body; // Default to 'standard' if not specified
+
+    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+        console.warn('Invalid prompt received for /generate-image');
+        return res.status(400).json({ error: 'Valid prompt is required for image generation.' });
+    }
+
+    const modelId = IMAGEN_4_MODELS[modelType];
+    if (!modelId) {
+        return res.status(400).json({ error: `Invalid Imagen model type: ${modelType}.` });
+    }
+
+    console.log(`Attempting to generate image with prompt: "${prompt}" using model: ${modelId}`);
+
+    try {
+        // Get an access token from GoogleAuth. In Cloud Run, this will use the service account's identity.
+        const accessToken = await googleAuth.getAccessToken();
+        if (!accessToken) {
+            console.error('Failed to obtain Google Cloud access token.');
+            return res.status(500).json({ error: 'Failed to authenticate with Google Cloud.' });
+        }
+
+        const apiUrl = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${modelId}:predict`;
+
+        const payload = {
+            instances: [
+                {
+                    prompt: prompt
+                }
+            ],
+            parameters: {
+                sampleCount: 1 // Generate one image per request
+            }
+        };
+
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json; charset=utf-8'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Imagen API call failed with status ${response.status}: ${errorText}`);
+            return res.status(response.status).json({ error: `Imagen API error: ${errorText}` });
+        }
+
+        const result = await response.json();
+
+        if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+            const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+            res.json({ imageUrl: imageUrl });
+        } else {
+            console.warn('Imagen API response did not contain expected image data:', result);
+            res.status(500).json({ error: 'Imagen generation successful, but no image data returned.' });
+        }
+
+    } catch (error) {
+        console.error('Error during Imagen image generation:', error);
+        res.status(500).json({ error: `Backend error during image generation: ${error.message}` });
+    }
+});
 
 
 // Start the server

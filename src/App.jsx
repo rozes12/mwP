@@ -1692,6 +1692,7 @@ function App() {
     const [imageGenPrompt, setImageGenPrompt] = useState(''); // Prompt for image generation
     const [generatedImageUrl, setGeneratedImageUrl] = useState(null); // Stores the base64 image URL
     const [imageGenLoading, setImageGenLoading] = useState(false); // Loading state for image generation
+    const [selectedImagenModel, setSelectedImagenModel] = useState('standard'); // Default Imagen 4.0 model type
 
     const [selectedModels, setSelectedModels] = useState({
         'gemini-2.5-flash': true,
@@ -1717,6 +1718,11 @@ function App() {
             ...prev,
             [modelName]: !prev[modelName]
         }));
+    };
+
+    // Handler for selecting Imagen 4.0 model type
+    const handleImagenModelSelect = (e) => {
+        setSelectedImagenModel(e.target.value);
     };
 
     // Handler for uploading images for text/vision models
@@ -1864,8 +1870,8 @@ function App() {
         }
     };
 
-    // NEW: Function to generate an image using the Imagen 3.0 model (direct client-side API call)
-    const generateImageDirectly = async () => {
+    // UPDATED: Function to generate an image using the Imagen 4.0 model via backend
+    const generateImageViaBackend = async () => {
         if (!imageGenPrompt.trim()) {
             setResults({ error: 'Please enter a prompt for image generation.' });
             return;
@@ -1875,36 +1881,15 @@ function App() {
         setGeneratedImageUrl(null); // Clear previous image
         setResults({}); // Clear general text results
 
-        // The payload for the image generation request
-        const payload = {
-            instances: { prompt: imageGenPrompt },
-            parameters: { "sampleCount": 1 }
-        };
-
-        // The API key should be an empty string if it's automatically handled by the Canvas environment.
-        const apiKey = ""; // Canvas will inject this if running in the environment
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
-
         try {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+            const data = await callBackendApi('/generate-image', {
+                prompt: imageGenPrompt,
+                modelType: selectedImagenModel // Send selected model type to backend
             });
-
-            const result = await response.json();
-
-            // Check if the response contains the image data
-            if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
-                const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-                setGeneratedImageUrl(imageUrl); // Set the received Base64 image URL
-            } else {
-                console.error('Image generation failed: No image data in response.', result);
-                setResults({ error: 'Image generation failed: No image data returned.' });
-            }
+            setGeneratedImageUrl(data.imageUrl); // Backend now returns { imageUrl: base64string }
         } catch (error) {
-            console.error('Error during image generation:', error);
-            setResults({ error: `Error generating image: ${error.message}` });
+            console.error('Error during image generation (frontend):', error);
+            setResults({ error: `Image generation failed: ${error.message}. Check backend logs.` });
         } finally {
             setImageGenLoading(false);
         }
@@ -2082,8 +2067,26 @@ function App() {
                                     ></textarea>
                                 </div>
 
+                                {/* Imagen Model Selection */}
+                                <div className="mb-6">
+                                    <label htmlFor="imagen-model-select" className="block text-lg font-medium text-light-text mb-2">
+                                        Choose Imagen 4.0 Model:
+                                    </label>
+                                    <select
+                                        id="imagen-model-select"
+                                        value={selectedImagenModel}
+                                        onChange={handleImagenModelSelect}
+                                        className="w-full p-3 border border-funky-purple-300 rounded-lg shadow-inner bg-dark-background/50 text-light-text focus:outline-none focus:ring-2 focus:ring-funky-cyan transition-all duration-300"
+                                    >
+                                        <option value="standard">Standard</option>
+                                        <option value="ultra">Ultra</option>
+                                        <option value="fast">Fast</option>
+                                    </select>
+                                </div>
+
+
                                 <button
-                                    onClick={generateImageDirectly} 
+                                    onClick={generateImageViaBackend}
                                     disabled={imageGenLoading}
                                     className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
                                                bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg

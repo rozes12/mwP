@@ -1193,7 +1193,7 @@ app.post('/generate-responses', async (req, res) => {
     if (imageData) {
         const imagePart = fileToGenerativePart(imageData);
         if (imagePart) {
-            contentParts.unshift(imagePart);
+            contentParts.unshift(imagePart); // Add image part at the beginning
         } else {
             return res.status(400).json({ error: 'Invalid image data provided.' });
         }
@@ -1376,8 +1376,10 @@ app.post('/generate-image', async (req, res) => {
     try {
         console.log(`Attempting to generate image using Gemini 2.0 Flash for prompt: "${prompt}"`);
         
+        // Removed responseMimeType as it's not allowed for image-only output with this model.
+        // Images will be generated as parts within a text-based response.
         const generationConfig = {
-            responseMimeType: "image/png", // Request image output as PNG
+            // responseMimeType: "image/png", // REMOVED: This is causing the 400 Bad Request
         };
 
         const safetySettings = [

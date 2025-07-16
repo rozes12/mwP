@@ -2083,7 +2083,7 @@ function App() {
                                 </div>
 
                                 <button
-                                    onClick={generateImageDirectly} {/* Updated to call the new direct function */}
+                                    onClick={generateImageDirectly} 
                                     disabled={imageGenLoading}
                                     className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
                                                bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg

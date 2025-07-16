@@ -446,6 +446,10 @@ app.post('/generate-responses', async (req, res) => {
     const newResults = {};
     const promises = [];
 
+    // ---- ADD THIS LINE ----
+    console.log('DEBUG: Constructed contentParts:', JSON.stringify(contentParts, null, 2));
+    // -----------------------
+
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
             promises.push(

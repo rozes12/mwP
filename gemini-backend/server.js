@@ -433,9 +433,26 @@ const callGeminiApiBackend = async (modelName, contentParts) => {
 
 // Main endpoint to handle requests for multiple models
 app.post('/generate-responses', async (req, res) => {
-    console.log('DEBUG: Full Request Body:', JSON.stringify(req.body, null, 2));
-    const { prompt, selectedModels, imageData } = req.body;
+     // --- NEW DEBUGGING LOGS ---
+    console.log(`DEBUG: Type of req.body: ${typeof req.body}`); // What is the type of the body?
+    console.log(`DEBUG: Is req.body null?: ${req.body === null}`); // Is it null?
+    console.log(`DEBUG: Is req.body empty object?: ${typeof req.body === 'object' && Object.keys(req.body).length === 0}`); // Is it just an empty object?
 
+    const { prompt, selectedModels, imageData } = req.body; // Destructuring happens here
+
+    console.log(`DEBUG: Raw Prompt Value: '${prompt}'`); // Log prompt directly
+    console.log(`DEBUG: Raw Prompt Type: ${typeof prompt}`); // Log type of prompt
+
+    console.log(`DEBUG: Raw ImageData (present): ${!!imageData}`); // Logs true/false
+    if (typeof imageData === 'string') {
+        console.log(`DEBUG: ImageData MimeType Prefix: ${imageData.substring(0, 30)}...`); // Log start of Base64
+    } else {
+        console.log(`DEBUG: Raw ImageData Type: ${typeof imageData}`); // Log type if not string
+    }
+    // --- END NEW DEBUGGING LOGS ---
+
+
+    // --- KEEP THIS EXISTING VALIDATION ---
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
         console.warn('Invalid prompt received for /generate-responses');
         return res.status(400).json({ error: 'Valid prompt is required.' });
@@ -444,6 +461,15 @@ app.post('/generate-responses', async (req, res) => {
         console.warn('No models selected for /generate-responses');
         return res.status(400).json({ error: 'Selected models are required.' });
     }
+
+    // if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+    //     console.warn('Invalid prompt received for /generate-responses');
+    //     return res.status(400).json({ error: 'Valid prompt is required.' });
+    // }
+    // if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
+    //     console.warn('No models selected for /generate-responses');
+    //     return res.status(400).json({ error: 'Selected models are required.' });
+    // }
 
     const contentParts = [{ text: prompt }];
     if (imageData) {

@@ -684,11 +684,11 @@
 
 
 
-
 // gemini-backend/server.js
 
 const express = require('express');
 const { VertexAI } = require('@google-cloud/vertexai');
+const { GoogleAuth } = require('google-auth-library'); // Import GoogleAuth
 const cors = require('cors');
 require('dotenv').config(); // Load environment variables from .env file
 
@@ -707,25 +707,21 @@ if (!PROJECT_ID) {
 }
 
 const vertexAI = new VertexAI({ project: PROJECT_ID, location: LOCATION });
+const googleAuth = new GoogleAuth(); // Initialize GoogleAuth for token handling
 
 // Define the generative models available for selection (for text/vision tasks)
 const GENERATIVE_MODELS = {
-    // These are the GA models. Using base names should get the latest auto-updated versions.
     'gemini-2.5-flash': vertexAI.getGenerativeModel({ model: 'gemini-2.5-flash' }),
     'gemini-2.5-pro': vertexAI.getGenerativeModel({ model: 'gemini-2.5-pro' }),
     'gemini-1.5-flash': vertexAI.getGenerativeModel({ model: 'gemini-1.5-flash' }),
 };
 
-// Define the Imagen model for image generation
-// const IMAGEN_MODEL = vertexAI.getPredictionModel('imagen-3.0-generate-002'); // Use getPredictionModel for Imagen
 // Define Imagen 4.0 models for the backend API calls
 const IMAGEN_4_MODELS = {
     'standard': 'imagen-4.0-generate-preview-06-06', // Use the latest preview if available
     'ultra': 'imagen-4.0-ultra-generate-preview-06-06',
     'fast': 'imagen-4.0-fast-generate-preview-06-06'
 };
-
-
 
 // --- Helper function for image conversion (for sending images to Gemini) ---
 function fileToGenerativePart(base64EncodedImage, mimeType = 'image/jpeg') {
@@ -967,53 +963,6 @@ app.post('/extract-keywords', async (req, res) => {
         res.status(500).json({ error: 'Failed to extract keywords.' });
     }
 });
-
-// NEW: Endpoint for generating images using Imagen (imagen-3.0-generate-002)
-// app.post('/generate-image', async (req, res) => {
-//     const { prompt } = req.body;
-
-//     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-//         console.warn('Invalid prompt received for /generate-image');
-//         return res.status(400).json({ error: 'Valid prompt is required for image generation.' });
-//     }
-
-//     try {
-//         console.log(`DEBUG: Calling Imagen model with prompt: "${prompt}"`);
-
-//         // Imagen API payload structure
-//         const request = {
-//             instances: [{ prompt: prompt }],
-//             parameters: {
-//                 sampleCount: 1, // Requesting one image
-//                 // Add other parameters if needed, e.g., seed, aspect ratio, guidance_scale, etc.
-//                 // See Imagen documentation for full list of parameters.
-//             },
-//         };
-
-//         const response = await IMAGEN_MODEL.predict(request);
-
-//         if (response && response.predictions && response.predictions.length > 0 && response.predictions[0].bytesBase64Encoded) {
-//             const imageDataBase64 = response.predictions[0].bytesBase64Encoded;
-//             // Prepend data URL prefix for direct use in <img> tag
-//             const imageUrl = `data:image/png;base64,${imageDataBase64}`;
-//             console.log('DEBUG: Image successfully generated and base64 data received.');
-//             res.json({ imageUrl: imageUrl });
-//         } else {
-//             console.error('Imagen API response did not contain expected image data:', JSON.stringify(response));
-//             res.status(500).json({ error: 'Image generation failed: No image data returned.' });
-//         }
-
-//     } catch (error) {
-//         console.error('Error generating image with Imagen API:', error);
-//         let errorMessage = 'Failed to generate image. Please check the prompt or try again later.';
-//         if (error.code === 400) {
-//             errorMessage = `Invalid request to Imagen API: ${error.message}`;
-//         } else if (error.code === 403) {
-//             errorMessage = `Permission denied for Imagen API. Check Vertex AI API enablement and service account permissions.`;
-//         }
-//         res.status(500).json({ error: errorMessage });
-//     }
-// });
 
 // NEW: Endpoint for Imagen 4.0 Image Generation
 app.post('/generate-image', async (req, res) => {

@@ -1362,10 +1362,18 @@ app.post('/generate-image', async (req, res) => {
         ];
 
         // Modify the prompt to explicitly ask for both an image and text
-        const multimodalPrompt = `Generate an image based on the following description: "${prompt}". Also, provide a short textual description of the generated image.`;
+        // const multimodalPrompt = `Generate an image based on the following description: "${prompt}". Also, provide a short textual description of the generated image.`;
+           const multimodalPrompt = `Generate an image based on the following description: "${prompt}".`;
 
         const result = await modelInstance.generateContent({
-            contents: [{ role: "user", parts: [{ text: multimodalPrompt }] }],
+            // contents: [{ role: "user", parts: [{ text: multimodalPrompt }] }],
+            contents: [
+  {
+    role: "user",
+    parts: [{ text: prompt }]
+  }
+],
+
             generationConfig,
             safetySettings,
         });
@@ -1377,7 +1385,7 @@ app.post('/generate-image', async (req, res) => {
 
         if (candidate && candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
             const imagePart = candidate.content.parts.find(part => part.inlineData && part.inlineData.mimeType.startsWith('image/'));
-            const textPart = candidate.content.parts.find(part => part.text); // Find the text part
+            // const textPart = candidate.content.parts.find(part => part.text); // Find the text part
 
             if (imagePart && imagePart.inlineData && imagePart.inlineData.data) {
                 const base64Data = imagePart.inlineData.data;

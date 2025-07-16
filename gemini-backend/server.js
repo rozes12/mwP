@@ -328,12 +328,12 @@ const app = express();
 const port = process.env.PORT || 8080; // Use PORT from environment or default to 8080
 
 // Initialize Vertex AI with project and location from environment variables
-const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT;
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID;
 // Ensure this location matches what your models support and what you've tested with curl
 const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
 if (!PROJECT_ID) {
-    console.error('GOOGLE_CLOUD_PROJECT environment variable is not set.');
+    console.error('GOOGLE_CLOUD_PROJECT_ID environment variable is not set.');
     process.exit(1);
 }
 

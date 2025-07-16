@@ -1386,8 +1386,8 @@ function App() {
                     </button>
                 </div>
 
-                {/* Flippable Container - Removed min-h-[80vh] */}
-                <div className={`relative w-full h-auto transition-transform duration-700 ease-in-out preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+                {/* Flippable Container - Re-added min-h-[80vh] */}
+                <div className={`relative w-full h-auto min-h-[80vh] transition-transform duration-700 ease-in-out preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
                     {/* Front Side: Text AI Tools */}
                     <div className={`absolute w-full h-full backface-hidden p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20 ${isFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'}`}>
                         {!isFlipped && (
@@ -1584,7 +1584,7 @@ function App() {
 
                                 {/* Generated Image Display */}
                                 {generatedImageUrl && (
-                                    <div className="mt-8 p-4 bg-dark-background/40 rounded-lg border border-funky-cyan/30 shadow-inner flex flex-col items-center w-full max-w-full max-h-[70vh] overflow-y-auto">
+                                    <div className="mt-8 p-4 bg-dark-background/40 rounded-lg border border-funky-cyan/30 shadow-inner flex flex-col items-center w-full max-w-full max-h-[70vh] overflow-y-auto"> {/* Added w-full, max-w-full, max-h-[70vh], overflow-y-auto */}
                                         <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50 w-full text-center">
                                             Your Creation:
                                         </h3>

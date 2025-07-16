@@ -1,319 +1,319 @@
 
 
 
-// // gemini-backend/server.js
-// require('dotenv').config(); // Load environment variables from .env file
-// const express = require('express');
-// const cors = require('cors');
-// const { GoogleGenerativeAI } = require('@google/generative-ai');  // Imports the necessary class from the Google Generative AI client library for Node.js, which allows interaction with Gemini models.
+// gemini-backend/server.js
+require('dotenv').config(); // Load environment variables from .env file
+const express = require('express');
+const cors = require('cors');
+const { GoogleGenerativeAI } = require('@google/generative-ai');  // Imports the necessary class from the Google Generative AI client library for Node.js, which allows interaction with Gemini models.
 
-// const app = express();
-// const port = process.env.PORT || 8080; // Changed to 8080 for Cloud Run compatibility
+const app = express();
+const port = process.env.PORT || 8080; // Changed to 8080 for Cloud Run compatibility
 
-// // Middleware
-// // Configure CORS to only allow requests from your frontend's origin
-// app.use(cors({
-//     origin: 'https://minwebfront-343717256329.us-central1.run.app'
+// Middleware
+// Configure CORS to only allow requests from your frontend's origin
+app.use(cors({
+    origin: 'https://minwebfront-343717256329.us-central1.run.app'
      
-// }));
-// // --- MODIFIED: Increase JSON body limit for image data ---
-// app.use(express.json({ limit: '50mb' })); // Allows larger request bodies for Base64 images
-// // --- END MODIFIED ---
+}));
+// --- MODIFIED: Increase JSON body limit for image data ---
+app.use(express.json({ limit: '50mb' })); // Allows larger request bodies for Base64 images
+// --- END MODIFIED ---
 
 
-// // Initialize Gemini models with API key from environment variable
-// const API_KEY = process.env.GEMINI_API_KEY;
-// if (!API_KEY) {
-//     console.error("GEMINI_API_KEY not found in environment variables. Please set it in your .env file.");
-//     process.exit(1); // Exit if API key is not found
-// }
+// Initialize Gemini models with API key from environment variable
+const API_KEY = process.env.GEMINI_API_KEY;
+if (!API_KEY) {
+    console.error("GEMINI_API_KEY not found in environment variables. Please set it in your .env file.");
+    process.exit(1); // Exit if API key is not found
+}
 
-// const genAI = new GoogleGenerativeAI(API_KEY); //entry point for interacting with the gemini api
+const genAI = new GoogleGenerativeAI(API_KEY); //entry point for interacting with the gemini api
 
-// // Define your three Gemini models with CURRENT, STABLE model IDs
-// const MODELS = {
-//     'gemini-2.5-flash': genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }),
-//     'gemini-2.5-pro': genAI.getGenerativeModel({ model: 'gemini-2.5-pro' }),
-//     'gemini-1.5-flash': genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }),
-// };
+// Define your three Gemini models with CURRENT, STABLE model IDs
+const MODELS = {
+    'gemini-2.5-flash': genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }),
+    'gemini-2.5-pro': genAI.getGenerativeModel({ model: 'gemini-2.5-pro' }),
+    'gemini-1.5-flash': genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }),
+};
 
-// // --- NEW HELPER FUNCTION FOR IMAGE PROCESSING ---
-// /**
-//  * Converts a Base64 data URL string into a Gemini GenerativeContentPart for image data.
-//  * Expected format: "data:image/jpeg;base64,..."
-//  * @param {string} imageData The Base64 data URL string from the frontend.
-//  * @returns {object} A GenerativeContentPart object for an image, or null if input is invalid.
-//  */
-// function fileToGenerativePart(imageData) {
-//     if (!imageData || typeof imageData !== 'string') {
-//         return null; // No valid image data provided
-//     }
+// --- NEW HELPER FUNCTION FOR IMAGE PROCESSING ---
+/**
+ * Converts a Base64 data URL string into a Gemini GenerativeContentPart for image data.
+ * Expected format: "data:image/jpeg;base64,..."
+ * @param {string} imageData The Base64 data URL string from the frontend.
+ * @returns {object} A GenerativeContentPart object for an image, or null if input is invalid.
+ */
+function fileToGenerativePart(imageData) {
+    if (!imageData || typeof imageData !== 'string') {
+        return null; // No valid image data provided
+    }
 
-//     // Split the data URL to get mimeType and base64Data
-//     const parts = imageData.split(',');
-//     if (parts.length !== 2) {
-//         console.warn('Invalid image data format. Expected a data URL with a comma.');
-//         return null; // Or throw an error if you want stricter validation
-//     }
+    // Split the data URL to get mimeType and base64Data
+    const parts = imageData.split(',');
+    if (parts.length !== 2) {
+        console.warn('Invalid image data format. Expected a data URL with a comma.');
+        return null; // Or throw an error if you want stricter validation
+    }
 
-//     const mimeTypePart = parts[0]; // e.g., "data:image/png;base64"
-//     const base64Data = parts[1];   // e.g., "iVBORw0KGgoAAAANSUhEU..."
+    const mimeTypePart = parts[0]; // e.g., "data:image/png;base64"
+    const base64Data = parts[1];   // e.g., "iVBORw0KGgoAAAANSUhEU..."
 
-//     const mimeMatch = mimeTypePart.match(/^data:(.*?);base64$/);
-//     if (!mimeMatch || mimeMatch.length < 2) {
-//         console.warn('Could not extract MIME type from image data.');
-//         return null; // Or throw an error
-//     }
-//     const mimeType = mimeMatch[1]; // e.g., "image/png"
+    const mimeMatch = mimeTypePart.match(/^data:(.*?);base64$/);
+    if (!mimeMatch || mimeMatch.length < 2) {
+        console.warn('Could not extract MIME type from image data.');
+        return null; // Or throw an error
+    }
+    const mimeType = mimeMatch[1]; // e.g., "image/png"
 
-//     return {
-//         inlineData: {
-//             data: base64Data,
-//             mimeType: mimeType,
-//         },
-//     };
-// }
-// // --- END NEW HELPER ---
-
-
-// /**
-//  * Generic function to call the Gemini API on the backend.
-//  * Now accepts an array of content parts (text and/or image).
-//  * @param {string} modelName - The name of the model to use.
-//  * @param {Array<object>} contentParts - An array of content parts (e.g., [{ text: "prompt" }, { inlineData: ... }]).
-//  * @returns {Promise<string>} The generated text or an error message.
-//  */
-// // --- MODIFIED: callGeminiApiBackend now takes an array of contentParts ---
-// const callGeminiApiBackend = async (modelName, contentParts) => {
-//     const modelInstance = MODELS[modelName];
-//     if (!modelInstance) {
-//         return `Error: Model '${modelName}' is not configured on the backend.`;
-//     }
-
-//     try {
-//         // --- MODIFIED: Pass the contentParts array directly ---
-//         // const result = await modelInstance.generateContent({ contents: contentParts });
-//          const result = await modelInstance.generateContent(contentParts);
-//         // --- END MODIFIED ---
-//         const response = await result.response;
-//         return response.text();
-//     } catch (error) {
-//         console.error(`Error calling Gemini API for ${modelName}:`, error);
-//         if (error.response && error.response.error && error.response.error.message) {
-//             return `API Error from ${modelName}: ${error.response.error.message}`;
-//         }
-//         return `Error calling ${modelName} API: ${error.message || 'Unknown error'}`;
-//     }
-// };
-
-// // Main endpoint to handle requests for multiple models
-// app.post('/generate-responses', async (req, res) => {
-//     // --- MODIFIED: Get imageData from req.body ---
-//     const { prompt, selectedModels, imageData } = req.body;
-//     // --- END MODIFIED ---
-
-//     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-//         return res.status(400).json({ error: 'Valid prompt is required.' });
-//     }
-//     if (!selectedModels || typeof selectedModels !== 'object') {
-//         return res.status(400).json({ error: 'Selected models are required.' });
-//     }
-
-//     // --- NEW: Construct contentParts array ---
-//     const contentParts = [{ text: prompt }];
-//     if (imageData) {
-//         const imagePart = fileToGenerativePart(imageData);
-//         if (imagePart) {
-//             contentParts.unshift(imagePart); // Add image part at the beginning
-//         } else {
-//             // Optionally handle invalid image data more strictly here if fileToGenerativePart returns null on error
-//             return res.status(400).json({ error: 'Invalid image data provided.' });
-//         }
-//     }
-//     // --- END NEW ---
-
-//     const newResults = {};
-//     const promises = [];
-
-//     for (const modelName of Object.keys(selectedModels)) {
-//         if (selectedModels[modelName] && MODELS[modelName]) {
-//             promises.push(
-//                 // --- MODIFIED: Pass contentParts to callGeminiApiBackend ---
-//                 callGeminiApiBackend(modelName, contentParts)
-//                     .then(output => newResults[modelName] = output)
-//                     .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
-//             );
-//         } else if (selectedModels[modelName] && !MODELS[modelName]) {
-//             newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
-//         }
-//     }
-
-//     try {
-//         await Promise.allSettled(promises);
-//         res.json(newResults);
-//     } catch (error) {
-//         console.error('Error in /generate-responses endpoint:', error);
-//         res.status(500).json({ error: 'Failed to generate responses from models.' });
-//     }
-// });
+    return {
+        inlineData: {
+            data: base64Data,
+            mimeType: mimeType,
+        },
+    };
+}
+// --- END NEW HELPER ---
 
 
-// app.post('/summarize', async (req, res) => {
-//     // --- MODIFIED: Get imageData from req.body ---
-//     const { prompt, selectedModels, imageData } = req.body;
-//     // --- END MODIFIED ---
+/**
+ * Generic function to call the Gemini API on the backend.
+ * Now accepts an array of content parts (text and/or image).
+ * @param {string} modelName - The name of the model to use.
+ * @param {Array<object>} contentParts - An array of content parts (e.g., [{ text: "prompt" }, { inlineData: ... }]).
+ * @returns {Promise<string>} The generated text or an error message.
+ */
+// --- MODIFIED: callGeminiApiBackend now takes an array of contentParts ---
+const callGeminiApiBackend = async (modelName, contentParts) => {
+    const modelInstance = MODELS[modelName];
+    if (!modelInstance) {
+        return `Error: Model '${modelName}' is not configured on the backend.`;
+    }
 
-//     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-//         return res.status(400).json({ error: 'Valid prompt is required.' });
-//     }
-//     if (!selectedModels || typeof selectedModels !== 'object') {
-//         return res.status(400).json({ error: 'Selected models are required.' });
-//     }
+    try {
+        // --- MODIFIED: Pass the contentParts array directly ---
+        // const result = await modelInstance.generateContent({ contents: contentParts });
+         const result = await modelInstance.generateContent(contentParts);
+        // --- END MODIFIED ---
+        const response = await result.response;
+        return response.text();
+    } catch (error) {
+        console.error(`Error calling Gemini API for ${modelName}:`, error);
+        if (error.response && error.response.error && error.response.error.message) {
+            return `API Error from ${modelName}: ${error.response.error.message}`;
+        }
+        return `Error calling ${modelName} API: ${error.message || 'Unknown error'}`;
+    }
+};
 
-//     // --- NEW: Construct contentParts array ---
-//     // Ensure the prompt clearly instructs the model to use the image for summarization
-//     const promptForSummary = `Summarize the following text (and/or content of the image if provided) concisely and accurately:\n\n${prompt}`;
-//     const contentParts = [{ text: promptForSummary }];
-//     if (imageData) {
-//         const imagePart = fileToGenerativePart(imageData);
-//         if (imagePart) {
-//             contentParts.unshift(imagePart);
-//         } else {
-//             return res.status(400).json({ error: 'Invalid image data provided.' });
-//         }
-//     }
-//     // --- END NEW ---
+// Main endpoint to handle requests for multiple models
+app.post('/generate-responses', async (req, res) => {
+    // --- MODIFIED: Get imageData from req.body ---
+    const { prompt, selectedModels, imageData } = req.body;
+    // --- END MODIFIED ---
 
-//     const newResults = {};
-//     const promises = [];
+    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+        return res.status(400).json({ error: 'Valid prompt is required.' });
+    }
+    if (!selectedModels || typeof selectedModels !== 'object') {
+        return res.status(400).json({ error: 'Selected models are required.' });
+    }
 
-//     for (const modelName of Object.keys(selectedModels)) {
-//         if (selectedModels[modelName] && MODELS[modelName]) {
-//             promises.push(
-//                 // --- MODIFIED: Pass contentParts to callGeminiApiBackend ---
-//                 callGeminiApiBackend(modelName, contentParts)
-//                     .then(output => newResults[modelName] = output)
-//                     .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
-//             );
-//         } else if (selectedModels[modelName] && !MODELS[modelName]) {
-//             newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
-//         }
-//     }
+    // --- NEW: Construct contentParts array ---
+    const contentParts = [{ text: prompt }];
+    if (imageData) {
+        const imagePart = fileToGenerativePart(imageData);
+        if (imagePart) {
+            contentParts.unshift(imagePart); // Add image part at the beginning
+        } else {
+            // Optionally handle invalid image data more strictly here if fileToGenerativePart returns null on error
+            return res.status(400).json({ error: 'Invalid image data provided.' });
+        }
+    }
+    // --- END NEW ---
 
-//     try {
-//         await Promise.allSettled(promises);
-//         res.json(newResults);
-//     } catch (error) {
-//         console.error('Error in /summarize endpoint:', error); // Specific endpoint error log
-//         res.status(500).json({ error: 'Failed to generate summaries from models.' });
-//     }
-// });
+    const newResults = {};
+    const promises = [];
+
+    for (const modelName of Object.keys(selectedModels)) {
+        if (selectedModels[modelName] && MODELS[modelName]) {
+            promises.push(
+                // --- MODIFIED: Pass contentParts to callGeminiApiBackend ---
+                callGeminiApiBackend(modelName, contentParts)
+                    .then(output => newResults[modelName] = output)
+                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
+            );
+        } else if (selectedModels[modelName] && !MODELS[modelName]) {
+            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
+        }
+    }
+
+    try {
+        await Promise.allSettled(promises);
+        res.json(newResults);
+    } catch (error) {
+        console.error('Error in /generate-responses endpoint:', error);
+        res.status(500).json({ error: 'Failed to generate responses from models.' });
+    }
+});
 
 
-// app.post('/expand', async (req, res) => {
-//     // --- MODIFIED: Get imageData from req.body ---
-//     const { prompt, selectedModels, imageData } = req.body;
-//     // --- END MODIFIED ---
+app.post('/summarize', async (req, res) => {
+    // --- MODIFIED: Get imageData from req.body ---
+    const { prompt, selectedModels, imageData } = req.body;
+    // --- END MODIFIED ---
 
-//     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-//         return res.status(400).json({ error: 'Valid prompt is required.' });
-//     }
-//     if (!selectedModels || typeof selectedModels !== 'object') {
-//         return res.status(400).json({ error: 'Selected models are required.' });
-//     }
+    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+        return res.status(400).json({ error: 'Valid prompt is required.' });
+    }
+    if (!selectedModels || typeof selectedModels !== 'object') {
+        return res.status(400).json({ error: 'Selected models are required.' });
+    }
 
-//     // --- NEW: Construct contentParts array ---
-//     const promptForExpansion = `Continue writing the following text (and/or based on the image if provided), expanding on the ideas present. Make it at least 200 words long and maintain the original style and tone:\n\n${prompt}`;
-//     const contentParts = [{ text: promptForExpansion }];
-//     if (imageData) {
-//         const imagePart = fileToGenerativePart(imageData);
-//         if (imagePart) {
-//             contentParts.unshift(imagePart);
-//         } else {
-//             return res.status(400).json({ error: 'Invalid image data provided.' });
-//         }
-//     }
-//     // --- END NEW ---
+    // --- NEW: Construct contentParts array ---
+    // Ensure the prompt clearly instructs the model to use the image for summarization
+    const promptForSummary = `Summarize the following text (and/or content of the image if provided) concisely and accurately:\n\n${prompt}`;
+    const contentParts = [{ text: promptForSummary }];
+    if (imageData) {
+        const imagePart = fileToGenerativePart(imageData);
+        if (imagePart) {
+            contentParts.unshift(imagePart);
+        } else {
+            return res.status(400).json({ error: 'Invalid image data provided.' });
+        }
+    }
+    // --- END NEW ---
 
-//     const newResults = {};
-//     const promises = [];
+    const newResults = {};
+    const promises = [];
 
-//     for (const modelName of Object.keys(selectedModels)) {
-//         if (selectedModels[modelName] && MODELS[modelName]) {
-//             promises.push(
-//                 // --- MODIFIED: Pass contentParts to callGeminiApiBackend ---
-//                 callGeminiApiBackend(modelName, contentParts)
-//                     .then(output => newResults[modelName] = output)
-//                     .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
-//             );
-//         } else if (selectedModels[modelName] && !MODELS[modelName]) {
-//             newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
-//         }
-//     }
+    for (const modelName of Object.keys(selectedModels)) {
+        if (selectedModels[modelName] && MODELS[modelName]) {
+            promises.push(
+                // --- MODIFIED: Pass contentParts to callGeminiApiBackend ---
+                callGeminiApiBackend(modelName, contentParts)
+                    .then(output => newResults[modelName] = output)
+                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
+            );
+        } else if (selectedModels[modelName] && !MODELS[modelName]) {
+            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
+        }
+    }
 
-//     try {
-//         await Promise.allSettled(promises);
-//         res.json(newResults);
-//     } catch (error) {
-//         console.error('Error in /expand endpoint:', error); // Specific endpoint error log
-//         res.status(500).json({ error: 'Failed to generate expansions from models.' });
-//     }
-// });
+    try {
+        await Promise.allSettled(promises);
+        res.json(newResults);
+    } catch (error) {
+        console.error('Error in /summarize endpoint:', error); // Specific endpoint error log
+        res.status(500).json({ error: 'Failed to generate summaries from models.' });
+    }
+});
 
-// app.post('/extract-keywords', async (req, res) => {
-//     // --- MODIFIED: Get imageData from req.body ---
-//     const { prompt, selectedModels, imageData } = req.body;
-//     // --- END MODIFIED ---
 
-//     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-//         return res.status(400).json({ error: 'Text to extract keywords from is required.' });
-//     }
-//     if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
-//         return res.status(400).json({ error: 'At least one model must be selected for keyword extraction.' });
-//     }
+app.post('/expand', async (req, res) => {
+    // --- MODIFIED: Get imageData from req.body ---
+    const { prompt, selectedModels, imageData } = req.body;
+    // --- END MODIFIED ---
 
-//     // --- NEW: Construct contentParts array ---
-//     const promptForKeywords = `Extract the most important keywords and phrases from the following text (and/or image content if provided). List them as comma-separated values, without additional sentences or explanations:\n\n${prompt}`;
-//     const contentParts = [{ text: promptForKeywords }];
-//     if (imageData) {
-//         const imagePart = fileToGenerativePart(imageData);
-//         if (imagePart) {
-//             contentParts.unshift(imagePart);
-//         } else {
-//             return res.status(400).json({ error: 'Invalid image data provided.' });
-//         }
-//     }
-//     // --- END NEW ---
+    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+        return res.status(400).json({ error: 'Valid prompt is required.' });
+    }
+    if (!selectedModels || typeof selectedModels !== 'object') {
+        return res.status(400).json({ error: 'Selected models are required.' });
+    }
 
-//     const newResults = {};
-//     const promises = [];
+    // --- NEW: Construct contentParts array ---
+    const promptForExpansion = `Continue writing the following text (and/or based on the image if provided), expanding on the ideas present. Make it at least 200 words long and maintain the original style and tone:\n\n${prompt}`;
+    const contentParts = [{ text: promptForExpansion }];
+    if (imageData) {
+        const imagePart = fileToGenerativePart(imageData);
+        if (imagePart) {
+            contentParts.unshift(imagePart);
+        } else {
+            return res.status(400).json({ error: 'Invalid image data provided.' });
+        }
+    }
+    // --- END NEW ---
 
-//     for (const modelName of Object.keys(selectedModels)) {
-//         if (selectedModels[modelName] && MODELS[modelName]) {
-//             promises.push(
-//                 // --- MODIFIED: Pass contentParts to callGeminiApiBackend ---
-//                 callGeminiApiBackend(modelName, promptForKeywords) // This was the old way, ensure it's contentParts
-//                     .then(output => newResults[modelName] = output)
-//                     .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
-//             );
-//         } else if (selectedModels[modelName] && !MODELS[modelName]) {
-//             newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
-//         }
-//     }
+    const newResults = {};
+    const promises = [];
 
-//     try {
-//         await Promise.allSettled(promises);
-//         res.json(newResults);
-//     } catch (error) {
-//         console.error('Error in /extract-keywords endpoint:', error);
-//         res.status(500).json({ error: 'Failed to extract keywords from models.' });
-//     }
-// });
+    for (const modelName of Object.keys(selectedModels)) {
+        if (selectedModels[modelName] && MODELS[modelName]) {
+            promises.push(
+                // --- MODIFIED: Pass contentParts to callGeminiApiBackend ---
+                callGeminiApiBackend(modelName, contentParts)
+                    .then(output => newResults[modelName] = output)
+                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
+            );
+        } else if (selectedModels[modelName] && !MODELS[modelName]) {
+            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
+        }
+    }
 
-// // Start the server
-// app.listen(port, () => {
-//     console.log(`Backend server listening at http://localhost:${port}`);
-// });
+    try {
+        await Promise.allSettled(promises);
+        res.json(newResults);
+    } catch (error) {
+        console.error('Error in /expand endpoint:', error); // Specific endpoint error log
+        res.status(500).json({ error: 'Failed to generate expansions from models.' });
+    }
+});
+
+app.post('/extract-keywords', async (req, res) => {
+    // --- MODIFIED: Get imageData from req.body ---
+    const { prompt, selectedModels, imageData } = req.body;
+    // --- END MODIFIED ---
+
+    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
+        return res.status(400).json({ error: 'Text to extract keywords from is required.' });
+    }
+    if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
+        return res.status(400).json({ error: 'At least one model must be selected for keyword extraction.' });
+    }
+
+    // --- NEW: Construct contentParts array ---
+    const promptForKeywords = `Extract the most important keywords and phrases from the following text (and/or image content if provided). List them as comma-separated values, without additional sentences or explanations:\n\n${prompt}`;
+    const contentParts = [{ text: promptForKeywords }];
+    if (imageData) {
+        const imagePart = fileToGenerativePart(imageData);
+        if (imagePart) {
+            contentParts.unshift(imagePart);
+        } else {
+            return res.status(400).json({ error: 'Invalid image data provided.' });
+        }
+    }
+    // --- END NEW ---
+
+    const newResults = {};
+    const promises = [];
+
+    for (const modelName of Object.keys(selectedModels)) {
+        if (selectedModels[modelName] && MODELS[modelName]) {
+            promises.push(
+                // --- MODIFIED: Pass contentParts to callGeminiApiBackend ---
+                callGeminiApiBackend(modelName, promptForKeywords) // This was the old way, ensure it's contentParts
+                    .then(output => newResults[modelName] = output)
+                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
+            );
+        } else if (selectedModels[modelName] && !MODELS[modelName]) {
+            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
+        }
+    }
+
+    try {
+        await Promise.allSettled(promises);
+        res.json(newResults);
+    } catch (error) {
+        console.error('Error in /extract-keywords endpoint:', error);
+        res.status(500).json({ error: 'Failed to extract keywords from models.' });
+    }
+});
+
+// Start the server
+app.listen(port, () => {
+    console.log(`Backend server listening at http://localhost:${port}`);
+});
 
 
 
@@ -685,344 +685,3 @@
 // });
 
 
-
-// gemini-backend/server.js
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-
-const app = express();
-const port = process.env.PORT || 8080;
-
-// Middleware
-app.use(cors({
-    origin: 'https://minwebfront-343717256329.us-central1.run.app'
-}));
-app.use(express.json({ limit: '50mb' }));
-
-// Initialize Gemini models with API key
-const API_KEY = process.env.GEMINI_API_KEY;
-if (!API_KEY) {
-    console.error("GEMINI_API_KEY not found in environment variables. Please set it in your .env file.");
-    process.exit(1);
-}
-
-const genAI = new GoogleGenerativeAI(API_KEY);
-
-// Define your Gemini models, including one for image generation (e.g., 'image-generation-005')
-// Note: 'image-generation-005' is a placeholder. You'll need to use the correct model ID for actual image generation.
-// As of my last update, direct "text-to-image" generation via a simple model like 'gemini-pro' isn't standard.
-// For true image generation, you'd typically use a model like Imagen or a dedicated image generation API.
-// If your Gemini API key has access to an image generation model, specify it here.
-// For example, if you have access to a model like "imagen-3.0-generate-002" or similar:
-const MODELS = {
-    'gemini-2.5-flash': genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }),
-    'gemini-2.5-pro': genAI.getGenerativeModel({ model: 'gemini-2.5-pro' }),
-    'gemini-1.5-flash': genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }),
-    'image-generation-005': genAI.getGenerativeModel({ model: 'image-generation-005' }), // Placeholder for an image generation model
-    // If using Imagen directly, it might be a different setup, but for consistency with existing structure:
-    // 'imagen-3.0-generate-002': genAI.getGenerativeModel({ model: 'imagen-3.0-generate-002' }),
-};
-
-
-/**
- * Converts a Base64 data URL string into a Gemini GenerativeContentPart for image data.
- * Expected format: "data:image/jpeg;base64,..."
- * @param {string} imageData The Base64 data URL string from the frontend.
- * @returns {object} A GenerativeContentPart object for an image, or null if input is invalid.
- */
-function fileToGenerativePart(imageData) {
-    if (!imageData || typeof imageData !== 'string') {
-        return null;
-    }
-
-    const parts = imageData.split(',');
-    if (parts.length !== 2) {
-        console.warn('Invalid image data format. Expected a data URL with a comma.');
-        return null;
-    }
-
-    const mimeTypePart = parts[0];
-    const base64Data = parts[1];
-
-    const mimeMatch = mimeTypePart.match(/^data:(.*?);base64$/);
-    if (!mimeMatch || mimeMatch.length < 2) {
-        console.warn('Could not extract MIME type from image data.');
-        return null;
-    }
-    const mimeType = mimeMatch[1];
-
-    return {
-        inlineData: {
-            data: base64Data,
-            mimeType: mimeType,
-        },
-    };
-}
-
-
-/**
- * Generic function to call the Gemini API on the backend.
- * Now accepts an array of content parts (text and/or image).
- * @param {string} modelName - The name of the model to use.
- * @param {Array<object>} contentParts - An array of content parts (e.g., [{ text: "prompt" }, { inlineData: ... }]).
- * @returns {Promise<string>} The generated text or an error message.
- */
-const callGeminiApiBackend = async (modelName, contentParts) => {
-    const modelInstance = MODELS[modelName];
-    if (!modelInstance) {
-        return `Error: Model '${modelName}' is not configured on the backend.`;
-    }
-
-    try {
-        const result = await modelInstance.generateContent({ contents: contentParts });
-        const response = await result.response;
-        // For text-based models, return text
-        if (response.text) {
-            return response.text();
-        }
-        // If the model can return parts directly, handle accordingly.
-        // For image generation, the response might be structured differently.
-        return JSON.stringify(response.candidates); // Or handle specific image generation response structure
-    } catch (error) {
-        console.error(`Error calling Gemini API for ${modelName}:`, error);
-        if (error.response && error.response.error && error.response.error.message) {
-            return `API Error from ${modelName}: ${error.response.error.message}`;
-        }
-        return `Error calling ${modelName} API: ${error.message || 'Unknown error'}`;
-    }
-};
-
-// Main endpoint to handle requests for multiple models (text/vision)
-app.post('/generate-responses', async (req, res) => {
-    const { prompt, selectedModels, imageData } = req.body;
-
-    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-        return res.status(400).json({ error: 'Valid prompt is required.' });
-    }
-    if (!selectedModels || typeof selectedModels !== 'object') {
-        return res.status(400).json({ error: 'Selected models are required.' });
-    }
-
-    const contentParts = [{ text: prompt }];
-    if (imageData) {
-        const imagePart = fileToGenerativePart(imageData);
-        if (imagePart) {
-            contentParts.unshift(imagePart);
-        } else {
-            return res.status(400).json({ error: 'Invalid image data provided.' });
-        }
-    }
-
-    const newResults = {};
-    const promises = [];
-
-    for (const modelName of Object.keys(selectedModels)) {
-        if (selectedModels[modelName] && MODELS[modelName] && !modelName.startsWith('image-generation')) { // Exclude image gen model
-            promises.push(
-                callGeminiApiBackend(modelName, contentParts)
-                    .then(output => newResults[modelName] = output)
-                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
-            );
-        } else if (selectedModels[modelName] && !MODELS[modelName]) {
-            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
-        }
-    }
-
-    try {
-        await Promise.allSettled(promises);
-        res.json(newResults);
-    } catch (error) {
-        console.error('Error in /generate-responses endpoint:', error);
-        res.status(500).json({ error: 'Failed to generate responses from models.' });
-    }
-});
-
-
-app.post('/summarize', async (req, res) => {
-    const { prompt, selectedModels, imageData } = req.body;
-
-    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-        return res.status(400).json({ error: 'Valid prompt is required.' });
-    }
-    if (!selectedModels || typeof selectedModels !== 'object') {
-        return res.status(400).json({ error: 'Selected models are required.' });
-    }
-
-    const promptForSummary = `Summarize the following text (and/or content of the image if provided) concisely and accurately:\n\n${prompt}`;
-    const contentParts = [{ text: promptForSummary }];
-    if (imageData) {
-        const imagePart = fileToGenerativePart(imageData);
-        if (imagePart) {
-            contentParts.unshift(imagePart);
-        } else {
-            return res.status(400).json({ error: 'Invalid image data provided.' });
-        }
-    }
-
-    const newResults = {};
-    const promises = [];
-
-    for (const modelName of Object.keys(selectedModels)) {
-        if (selectedModels[modelName] && MODELS[modelName] && !modelName.startsWith('image-generation')) {
-            promises.push(
-                callGeminiApiBackend(modelName, contentParts)
-                    .then(output => newResults[modelName] = output)
-                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
-            );
-        } else if (selectedModels[modelName] && !MODELS[modelName]) {
-            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
-        }
-    }
-
-    try {
-        await Promise.allSettled(promises);
-        res.json(newResults);
-    } catch (error) {
-        console.error('Error in /summarize endpoint:', error);
-        res.status(500).json({ error: 'Failed to generate summaries from models.' });
-    }
-});
-
-
-app.post('/expand', async (req, res) => {
-    const { prompt, selectedModels, imageData } = req.body;
-
-    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-        return res.status(400).json({ error: 'Valid prompt is required.' });
-    }
-    if (!selectedModels || typeof selectedModels !== 'object') {
-        return res.status(400).json({ error: 'Selected models are required.' });
-    }
-
-    const promptForExpansion = `Continue writing the following text (and/or based on the image if provided), expanding on the ideas present. Make it at least 200 words long and maintain the original style and tone:\n\n${prompt}`;
-    const contentParts = [{ text: promptForExpansion }];
-    if (imageData) {
-        const imagePart = fileToGenerativePart(imageData);
-        if (imagePart) {
-            contentParts.unshift(imagePart);
-        } else {
-            return res.status(400).json({ error: 'Invalid image data provided.' });
-        }
-    }
-
-    const newResults = {};
-    const promises = [];
-
-    for (const modelName of Object.keys(selectedModels)) {
-        if (selectedModels[modelName] && MODELS[modelName] && !modelName.startsWith('image-generation')) {
-            promises.push(
-                callGeminiApiBackend(modelName, contentParts)
-                    .then(output => newResults[modelName] = output)
-                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
-            );
-        } else if (selectedModels[modelName] && !MODELS[modelName]) {
-            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
-        }
-    }
-
-    try {
-        await Promise.allSettled(promises);
-        res.json(newResults);
-    } catch (error) {
-        console.error('Error in /expand endpoint:', error);
-        res.status(500).json({ error: 'Failed to generate expansions from models.' });
-    }
-});
-
-app.post('/extract-keywords', async (req, res) => {
-    const { prompt, selectedModels, imageData } = req.body;
-
-    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-        return res.status(400).json({ error: 'Text to extract keywords from is required.' });
-    }
-    if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
-        return res.status(400).json({ error: 'At least one model must be selected for keyword extraction.' });
-    }
-
-    const promptForKeywords = `Extract the most important keywords and phrases from the following text (and/or image content if provided). List them as comma-separated values, without additional sentences or explanations:\n\n${prompt}`;
-    const contentParts = [{ text: promptForKeywords }];
-    if (imageData) {
-        const imagePart = fileToGenerativePart(imageData);
-        if (imagePart) {
-            contentParts.unshift(imagePart);
-        } else {
-            return res.status(400).json({ error: 'Invalid image data provided.' });
-        }
-    }
-
-    const newResults = {};
-    const promises = [];
-
-    for (const modelName of Object.keys(selectedModels)) {
-        if (selectedModels[modelName] && MODELS[modelName] && !modelName.startsWith('image-generation')) {
-            promises.push(
-                callGeminiApiBackend(modelName, contentParts) // Corrected from `promptForKeywords` to `contentParts`
-                    .then(output => newResults[modelName] = output)
-                    .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`)
-            );
-        } else if (selectedModels[modelName] && !MODELS[modelName]) {
-            newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`
-        }
-    }
-
-    try {
-        await Promise.allSettled(promises);
-        res.json(newResults);
-    } catch (error) {
-        console.error('Error in /extract-keywords endpoint:', error);
-        res.status(500).json({ error: 'Failed to extract keywords from models.' });
-    }
-});
-
-// --- NEW ENDPOINT FOR IMAGE GENERATION ---
-app.post('/generate-image', async (req, res) => {
-    const { prompt } = req.body;
-    const imageGenModelName = 'image-generation-005'; // Use the appropriate image generation model ID
-
-    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-        return res.status(400).json({ error: 'Prompt for image generation is required.' });
-    }
-
-    const modelInstance = MODELS[imageGenModelName];
-    if (!modelInstance) {
-        return res.status(500).json({ error: `Image generation model '${imageGenModelName}' is not configured on the backend.` });
-    }
-
-    try {
-        // The prompt for image generation is typically a single text part
-        const result = await modelInstance.generateContent({ contents: [{ text: prompt }] });
-        const response = await result.response;
-
-        // Gemini models for image generation (e.g., 'image-generation-005' or 'imagen-3.0-generate-002')
-        // usually return image data in the `candidates[0].content.parts[0].inlineData` structure.
-        if (response.candidates && response.candidates.length > 0 &&
-            response.candidates[0].content &&
-            response.candidates[0].content.parts &&
-            response.candidates[0].content.parts.length > 0 &&
-            response.candidates[0].content.parts[0].inlineData) {
-
-            const imageData = response.candidates[0].content.parts[0].inlineData;
-            // Construct the data URL: "data:<mimeType>;base64,<data>"
-            const imageUrl = `data:${imageData.mimeType};base64,${imageData.data}`;
-            res.json({ imageUrl: imageUrl });
-        } else {
-            console.error("Unexpected response structure from image generation model:", response);
-            res.status(500).json({ error: 'Image generation failed: Unexpected response format from AI model.' });
-        }
-
-    } catch (error) {
-        console.error(`Error calling image generation API for ${imageGenModelName}:`, error);
-        if (error.response && error.response.error && error.response.error.message) {
-            return res.status(500).json({ error: `API Error from ${imageGenModelName}: ${error.response.error.message}` });
-        }
-        res.status(500).json({ error: `Error generating image: ${error.message || 'Unknown error'}` });
-    }
-});
-// --- END NEW ENDPOINT ---
-
-// Start the server
-app.listen(port, () => {
-    console.log(`Backend server listening at http://localhost:${port}`);
-});

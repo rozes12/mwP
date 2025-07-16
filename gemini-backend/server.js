@@ -316,130 +316,103 @@
 // });
 
 
+
 // gemini-backend/server.js
-require('dotenv').config(); // Load environment variables from .env file
-console.log('*** SERVER INITIALIZATION CONFIRMATION ***');
+
 const express = require('express');
-const cors = require('cors');
 const { VertexAI } = require('@google-cloud/vertexai');
+const cors = require('cors');
+require('dotenv').config(); // Load environment variables from .env file
 
 const app = express();
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 8080; // Use PORT from environment or default to 8080
 
-// Middleware
-// Configure CORS to only allow requests from your frontend's origin
-app.use(cors({
-    origin: ['https://minwebfront-343717256329.us-central1.run.app', 'http://localhost:8080']
-}));
-app.use(express.json({ limit: '50mb' })); // Allows larger request bodies for Base64 images
-
-// --- CRITICAL UPDATE: Initialize Vertex AI with 'global' location ---
-const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID;
-const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'global'; // <--- Set to 'global' for broader access
-
-console.log(`Initializing Vertex AI with Project ID: ${PROJECT_ID} and Location: ${LOCATION}`);
+// Initialize Vertex AI with project and location from environment variables
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT;
+// Ensure this location matches what your models support and what you've tested with curl
+const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
 if (!PROJECT_ID) {
-    console.error("GOOGLE_CLOUD_PROJECT_ID not found in environment variables. Please set it in your .env file.");
+    console.error('GOOGLE_CLOUD_PROJECT environment variable is not set.');
     process.exit(1);
 }
 
 const vertexAI = new VertexAI({ project: PROJECT_ID, location: LOCATION });
 
-// --- UPDATED: Define your Gemini models with precise IDs compatible with 'global' location ---
+// Define the generative models available for selection
 const MODELS = {
-    // gemini-2.5-flash is GA and accessible via 'global' with base name
+    // These are the GA models. Using base names should get the latest auto-updated versions.
     'gemini-2.5-flash': vertexAI.getGenerativeModel({ model: 'gemini-2.5-flash' }),
-    // gemini-2.5-pro is GA and accessible via 'global' with base name
     'gemini-2.5-pro': vertexAI.getGenerativeModel({ model: 'gemini-2.5-pro' }),
-    // gemini-1.5-flash requires the specific version -002 for consistent access
-    'gemini-1.5-flash': vertexAI.getGenerativeModel({ model: 'gemini-1.5-flash-002' }),
+    'gemini-1.5-flash': vertexAI.getGenerativeModel({ model: 'gemini-1.5-flash' }),
+    // You can add more models here if needed, e.g., 'gemini-1.0-pro'
 };
-// --- END UPDATED MODEL INITIALIZATION ---
 
-
-// --- NEW HELPER FUNCTION FOR IMAGE PROCESSING ---
-/**
- * Converts a Base64 data URL string into a Gemini GenerativeContentPart for image data.
- * Expected format: "data:image/jpeg;base64,..."
- * @param {string} imageData The Base64 data URL string from the frontend.
- * @returns {object} A GenerativeContentPart object for an image, or null if input is invalid.
- */
-function fileToGenerativePart(imageData) {
-    if (!imageData || typeof imageData !== 'string') {
-        console.warn('fileToGenerativePart: No valid image data string provided.');
-        return null; // No valid image data provided
-    }
-
-    // Split the data URL to get mimeType and base64Data
-    const parts = imageData.split(',');
-    if (parts.length !== 2) {
-        console.warn('fileToGenerativePart: Invalid image data format. Expected a data URL with a comma.');
+// --- Helper function for image conversion ---
+function fileToGenerativePart(base64EncodedImage, mimeType = 'image/jpeg') {
+    if (!base64EncodedImage) {
+        console.warn("No base64EncodedImage provided to fileToGenerativePart.");
         return null;
     }
-
-    const mimeTypePart = parts[0]; // e.g., "data:image/png;base64"
-    const base64Data = parts[1];   // e.g., "iVBORw0KGgoAAAANSUhEU..."
-
-    const mimeMatch = mimeTypePart.match(/^data:(.*?);base64$/);
-    if (!mimeMatch || mimeMatch.length < 2) {
-        console.warn('fileToGenerativePart: Could not extract MIME type from image data.');
-        return null;
-    }
-    const mimeType = mimeMatch[1]; // e.g., "image/png"
-
-    // Optional: Add a log to see the parsed image data details
-    // console.log(`fileToGenerativePart: Parsed MIME Type: ${mimeType}, Base64 Data Length: ${base64Data.length}`);
-
+    // Remove data URL prefix if present (e.g., "data:image/jpeg;base64,")
+    const base64Data = base64EncodedImage.split(',')[1] || base64EncodedImage;
     return {
         inlineData: {
             data: base64Data,
-            mimeType: mimeType,
+            mimeType: mimeType, // Default to JPEG, but allow override
         },
     };
 }
-// --- END NEW HELPER ---
 
+// --- Middleware ---
+app.use(cors()); // Enable CORS for all origins (adjust for production)
+app.use(express.json({ limit: '50mb' })); // Parse JSON bodies, increased limit for images
 
-/**
- * Generic function to call the Gemini API on the backend.
- * Now accepts an array of content parts (text and/or image).
- * @param {string} modelName - The name of the model to use.
- * @param {Array<object>} contentParts - An array of content parts (e.g., [{ text: "prompt" }, { inlineData: ... }]).
- * @returns {Promise<string>} The generated text or an error message.
- */
-const callGeminiApiBackend = async (modelName, contentParts) => {
-    const modelInstance = MODELS[modelName];
-    if (!modelInstance) {
-        console.error(`Error: Model '${modelName}' is not configured on the backend.`);
-        return `Error: Model '${modelName}' is not configured on the backend.`;
-    }
-
-    // Add a log right before calling the model API
-    console.log(`DEBUG: Calling ${modelName}.generateContent with contentParts:`, JSON.stringify(contentParts, null, 2));
-
+// --- Utility function to call Gemini API ---
+async function callGeminiApiBackend(modelName, contentParts) {
     try {
-        const result = await modelInstance.generateContent(contentParts);
+        const modelInstance = MODELS[modelName];
+        if (!modelInstance) {
+            throw new Error(`Model instance for ${modelName} not found.`);
+        }
+
+        // DEBUG: Logging the contentParts just before calling the API.
+        // Simplified JSON.stringify for cleaner logs, avoiding truncation issues.
+        console.log(`DEBUG: Calling ${modelName}.generateContent with contentParts: ${JSON.stringify(contentParts)}`);
+
+        const result = await modelInstance.generateContent({ contents: contentParts });
         const response = await result.response;
-        return response.text();
+
+        if (response && response.candidates && response.candidates.length > 0) {
+            const firstCandidate = response.candidates[0];
+            if (firstCandidate.content && firstCandidate.content.parts && firstCandidate.content.parts.length > 0) {
+                // Return only the text from the first part of the first candidate
+                return firstCandidate.content.parts[0].text;
+            }
+        }
+        return 'No content generated.';
     } catch (error) {
         console.error(`Error calling Gemini API for ${modelName}:`, error);
-        if (error.response && error.response.error && error.response.error.message) {
-            return `API Error from ${modelName}: ${error.response.error.message}`;
+        // Provide more detailed error if possible
+        if (error.code === 400 && error.message.includes("contents field is required")) {
+            throw new Error(`ClientError: [VertexAI.ClientError]: Invalid input content. Please check your prompt and image data. Original error: ${error.message}`);
+        } else if (error.code === 404 && error.message.includes("Publisher Model")) {
+            throw new Error(`ClientError: [VertexAI.ClientError]: Model ${modelName} not found or project lacks access. Check model ID and permissions. Original error: ${error.message}`);
         }
-        return `Error calling ${modelName} API: ${error.message || 'Unknown error'}`;
+        throw new Error(`ClientError: [VertexAI.ClientError]: ${error.message || 'Unknown error'}`);
     }
-};
+}
 
-// Main endpoint to handle requests for multiple models
+// --- Routes ---
+
+// Main endpoint to handle requests for multiple models and image data
 app.post('/generate-responses', async (req, res) => {
-     // --- NEW DEBUGGING LOGS ---
-    console.log(`DEBUG: Type of req.body: ${typeof req.body}`); // What is the type of the body?
-    console.log(`DEBUG: Is req.body null?: ${req.body === null}`); // Is it null?
-    console.log(`DEBUG: Is req.body empty object?: ${typeof req.body === 'object' && Object.keys(req.body).length === 0}`); // Is it just an empty object?
+    const { prompt, selectedModels, imageData } = req.body;
 
-    const { prompt, selectedModels, imageData } = req.body; // Destructuring happens here
-    // / --- START: Put the DEBUG logs here ---
+    // --- START: DETAILED DEBUG LOGS FOR PROMPT & IMAGE ---
+    console.log(`DEBUG: Type of req.body: ${typeof req.body}`);
+    console.log(`DEBUG: Is req.body null?: ${req.body === null}`);
+    console.log(`DEBUG: Is req.body empty object?: ${Object.keys(req.body).length === 0}`);
     console.log(`DEBUG: Raw Prompt Value (START):'${prompt}'(END)`);
     console.log(`DEBUG: Raw Prompt Type: ${typeof prompt}`);
     if (typeof prompt === 'string') {
@@ -455,21 +428,9 @@ app.post('/generate-responses', async (req, res) => {
     } else {
         console.log(`DEBUG: Raw ImageData Type: ${typeof imageData}`);
     }
-    // --- END: Put the DEBUG logs here ---
+    // --- END: DETAILED DEBUG LOGS ---
 
-    console.log(`DEBUG: Raw Prompt Value: '${prompt}'`); // Log prompt directly
-    console.log(`DEBUG: Raw Prompt Type: ${typeof prompt}`); // Log type of prompt
-
-    console.log(`DEBUG: Raw ImageData (present): ${!!imageData}`); // Logs true/false
-    if (typeof imageData === 'string') {
-        console.log(`DEBUG: ImageData MimeType Prefix: ${imageData.substring(0, 30)}...`); // Log start of Base64
-    } else {
-        console.log(`DEBUG: Raw ImageData Type: ${typeof imageData}`); // Log type if not string
-    }
-    // --- END NEW DEBUGGING LOGS ---
-
-
-    // --- KEEP THIS EXISTING VALIDATION ---
+    // Input validation
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
         console.warn('Invalid prompt received for /generate-responses');
         return res.status(400).json({ error: 'Valid prompt is required.' });
@@ -479,35 +440,28 @@ app.post('/generate-responses', async (req, res) => {
         return res.status(400).json({ error: 'Selected models are required.' });
     }
 
-    // if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-    //     console.warn('Invalid prompt received for /generate-responses');
-    //     return res.status(400).json({ error: 'Valid prompt is required.' });
-    // }
-    // if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
-    //     console.warn('No models selected for /generate-responses');
-    //     return res.status(400).json({ error: 'Selected models are required.' });
-    // }
+    // --- CRITICAL CORRECTION: Construct contentParts with explicit role and nested parts array ---
+    const contentParts = [{
+        role: 'user', // Explicitly define the role for the user's content
+        parts: [{ text: prompt }] // Wrap the text part in an array of 'parts'
+    }];
 
-    const contentParts = [{ text: prompt }];
     if (imageData) {
         const imagePart = fileToGenerativePart(imageData);
         if (imagePart) {
-            contentParts.unshift(imagePart); // Add image part at the beginning
+            contentParts[0].parts.unshift(imagePart); // Add image to the BEGINNING of the SAME 'parts' array
         } else {
             console.error('Invalid image data provided for /generate-responses after fileToGenerativePart');
             return res.status(400).json({ error: 'Invalid image data provided.' });
         }
     }
 
-    // DEBUG log before API call
-    // console.log('DEBUG: Constructed contentParts for /generate-responses:', JSON.stringify(contentParts, null, 2));
-console.log('DEBUG: Constructed contentParts (SIMPLE):', JSON.stringify(contentParts));
-// This forces the JSON output onto a single line.
+    // Debug log for the final contentParts structure (simplified for cleaner logs)
+    console.log('DEBUG: Constructed contentParts (SIMPLE):', JSON.stringify(contentParts));
+
+
     const newResults = {};
     const promises = [];
-
-      console.log('DEBUG: Constructed contentParts for /extract-keywords:', JSON.stringify(contentParts, null, 2));
-
 
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
@@ -531,38 +485,47 @@ console.log('DEBUG: Constructed contentParts (SIMPLE):', JSON.stringify(contentP
 });
 
 
+// Endpoint for summarizing text
 app.post('/summarize', async (req, res) => {
-    const { prompt, selectedModels, imageData } = req.body;
+    const { prompt, selectedModels } = req.body; // ImageData not used for summarize
+
+    // --- START: DETAILED DEBUG LOGS FOR PROMPT ---
+    console.log(`DEBUG: Type of req.body: ${typeof req.body}`);
+    console.log(`DEBUG: Is req.body null?: ${req.body === null}`);
+    console.log(`DEBUG: Is req.body empty object?: ${Object.keys(req.body).length === 0}`);
+    console.log(`DEBUG: Raw Prompt Value (START):'${prompt}'(END)`);
+    console.log(`DEBUG: Raw Prompt Type: ${typeof prompt}`);
+    if (typeof prompt === 'string') {
+        console.log(`DEBUG: Raw Prompt Length: ${prompt.length}`);
+        if (prompt.length > 0) {
+            console.log(`DEBUG: Raw Prompt Last CharCode: ${prompt.charCodeAt(prompt.length - 1)}`);
+        }
+        console.log(`DEBUG: Raw Prompt JSON.stringify: ${JSON.stringify(prompt)}`);
+    }
+    console.log(`DEBUG: Raw ImageData (present): false`); // Assuming summarize doesn't use images
+    console.log(`DEBUG: Raw ImageData Type: object`);
+    // --- END: DETAILED DEBUG LOGS ---
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
         console.warn('Invalid prompt received for /summarize');
-        return res.status(400).json({ error: 'Valid prompt is required.' });
+        return res.status(400).json({ error: 'Valid prompt is required for summarization.' });
     }
     if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
         console.warn('No models selected for /summarize');
-        return res.status(400).json({ error: 'Selected models are required.' });
+        return res.status(400).json({ error: 'Selected models are required for summarization.' });
     }
 
-    const promptForSummary = `Summarize the following text (and/or content of the image if provided) concisely and accurately:\n\n${prompt}`;
-    const contentParts = [{ text: promptForSummary }];
-    if (imageData) {
-        const imagePart = fileToGenerativePart(imageData);
-        if (imagePart) {
-            contentParts.unshift(imagePart);
-        } else {
-            console.error('Invalid image data provided for /summarize after fileToGenerativePart');
-            return res.status(400).json({ error: 'Invalid image data provided.' });
-        }
-    }
+    // --- CRITICAL CORRECTION: Construct contentParts with explicit role and nested parts array ---
+    const contentParts = [{
+        role: 'user',
+        parts: [{ text: prompt }]
+    }];
+    // Debug log for the final contentParts structure (simplified for cleaner logs)
+    console.log('DEBUG: Constructed contentParts (SIMPLE):', JSON.stringify(contentParts));
 
-    // DEBUG log before API call
-    console.log('DEBUG: Constructed contentParts for /summarize:', JSON.stringify(contentParts, null, 2));
 
     const newResults = {};
     const promises = [];
-
-      console.log('DEBUG: Constructed contentParts for /extract-keywords:', JSON.stringify(contentParts, null, 2));
-
 
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
@@ -581,42 +544,52 @@ app.post('/summarize', async (req, res) => {
         res.json(newResults);
     } catch (error) {
         console.error('Error in /summarize endpoint during Promise.allSettled:', error);
-        res.status(500).json({ error: 'Failed to generate summaries from models.' });
+        res.status(500).json({ error: 'Failed to summarize text.' });
     }
 });
 
 
+// Endpoint for expanding text
 app.post('/expand', async (req, res) => {
-    const { prompt, selectedModels, imageData } = req.body;
+    const { prompt, selectedModels } = req.body; // ImageData not used for expand
+
+    // --- START: DETAILED DEBUG LOGS FOR PROMPT ---
+    console.log(`DEBUG: Type of req.body: ${typeof req.body}`);
+    console.log(`DEBUG: Is req.body null?: ${req.body === null}`);
+    console.log(`DEBUG: Is req.body empty object?: ${Object.keys(req.body).length === 0}`);
+    console.log(`DEBUG: Raw Prompt Value (START):'${prompt}'(END)`);
+    console.log(`DEBUG: Raw Prompt Type: ${typeof prompt}`);
+    if (typeof prompt === 'string') {
+        console.log(`DEBUG: Raw Prompt Length: ${prompt.length}`);
+        if (prompt.length > 0) {
+            console.log(`DEBUG: Raw Prompt Last CharCode: ${prompt.charCodeAt(prompt.length - 1)}`);
+        }
+        console.log(`DEBUG: Raw Prompt JSON.stringify: ${JSON.stringify(prompt)}`);
+    }
+    console.log(`DEBUG: Raw ImageData (present): false`); // Assuming expand doesn't use images
+    console.log(`DEBUG: Raw ImageData Type: object`);
+    // --- END: DETAILED DEBUG LOGS ---
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
         console.warn('Invalid prompt received for /expand');
-        return res.status(400).json({ error: 'Valid prompt is required.' });
+        return res.status(400).json({ error: 'Valid prompt is required for expansion.' });
     }
     if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
         console.warn('No models selected for /expand');
-        return res.status(400).json({ error: 'Selected models are required.' });
+        return res.status(400).json({ error: 'Selected models are required for expansion.' });
     }
 
-    const promptForExpansion = `Continue writing the following text (and/or based on the image if provided), expanding on the ideas present. Make it at least 200 words long and maintain the original style and tone:\n\n${prompt}`;
-    const contentParts = [{ text: promptForExpansion }];
-    if (imageData) {
-        const imagePart = fileToGenerativePart(imageData);
-        if (imagePart) {
-            contentParts.unshift(imagePart);
-        } else {
-            console.error('Invalid image data provided for /expand after fileToGenerativePart');
-            return res.status(400).json({ error: 'Invalid image data provided.' });
-        }
-    }
+    // --- CRITICAL CORRECTION: Construct contentParts with explicit role and nested parts array ---
+    const contentParts = [{
+        role: 'user',
+        parts: [{ text: prompt }]
+    }];
+    // Debug log for the final contentParts structure (simplified for cleaner logs)
+    console.log('DEBUG: Constructed contentParts (SIMPLE):', JSON.stringify(contentParts));
 
-    // DEBUG log before API call
-    console.log('DEBUG: Constructed contentParts for /expand:', JSON.stringify(contentParts, null, 2));
 
     const newResults = {};
     const promises = [];
-      console.log('DEBUG: Constructed contentParts for /extract-keywords:', JSON.stringify(contentParts, null, 2));
-
 
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
@@ -635,41 +608,51 @@ app.post('/expand', async (req, res) => {
         res.json(newResults);
     } catch (error) {
         console.error('Error in /expand endpoint during Promise.allSettled:', error);
-        res.status(500).json({ error: 'Failed to generate expansions from models.' });
+        res.status(500).json({ error: 'Failed to expand text.' });
     }
 });
 
+// Endpoint for extracting keywords
 app.post('/extract-keywords', async (req, res) => {
-    const { prompt, selectedModels, imageData } = req.body;
+    const { prompt, selectedModels } = req.body; // ImageData not used for keywords
+
+    // --- START: DETAILED DEBUG LOGS FOR PROMPT ---
+    console.log(`DEBUG: Type of req.body: ${typeof req.body}`);
+    console.log(`DEBUG: Is req.body null?: ${req.body === null}`);
+    console.log(`DEBUG: Is req.body empty object?: ${Object.keys(req.body).length === 0}`);
+    console.log(`DEBUG: Raw Prompt Value (START):'${prompt}'(END)`);
+    console.log(`DEBUG: Raw Prompt Type: ${typeof prompt}`);
+    if (typeof prompt === 'string') {
+        console.log(`DEBUG: Raw Prompt Length: ${prompt.length}`);
+        if (prompt.length > 0) {
+            console.log(`DEBUG: Raw Prompt Last CharCode: ${prompt.charCodeAt(prompt.length - 1)}`);
+        }
+        console.log(`DEBUG: Raw Prompt JSON.stringify: ${JSON.stringify(prompt)}`);
+    }
+    console.log(`DEBUG: Raw ImageData (present): false`); // Assuming keywords doesn't use images
+    console.log(`DEBUG: Raw ImageData Type: object`);
+    // --- END: DETAILED DEBUG LOGS ---
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
         console.warn('Invalid prompt received for /extract-keywords');
-        return res.status(400).json({ error: 'Text to extract keywords from is required.' });
+        return res.status(400).json({ error: 'Valid prompt is required for keyword extraction.' });
     }
     if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
         console.warn('No models selected for /extract-keywords');
-        return res.status(400).json({ error: 'At least one model must be selected for keyword extraction.' });
+        return res.status(400).json({ error: 'Selected models are required for keyword extraction.' });
     }
 
-    const promptForKeywords = `Extract the most important keywords and phrases from the following text (and/or image content if provided). List them as comma-separated values, without additional sentences or explanations:\n\n${prompt}`;
-    const contentParts = [{ text: promptForKeywords }];
-    if (imageData) {
-        const imagePart = fileToGenerativePart(imageData);
-        if (imagePart) {
-            contentParts.unshift(imagePart);
-        } else {
-            console.error('Invalid image data provided for /extract-keywords after fileToGenerativePart');
-            return res.status(400).json({ error: 'Invalid image data provided.' });
-        }
-    }
+    // --- CRITICAL CORRECTION: Construct contentParts with explicit role and nested parts array ---
+    const contentParts = [{
+        role: 'user',
+        parts: [{ text: prompt }]
+    }];
+    // Debug log for the final contentParts structure (simplified for cleaner logs)
+    console.log('DEBUG: Constructed contentParts (SIMPLE):', JSON.stringify(contentParts));
 
-    // DEBUG log before API call
-    console.log('DEBUG: Constructed contentParts for /extract-keywords:', JSON.stringify(contentParts, null, 2));
 
     const newResults = {};
     const promises = [];
-    
-      console.log('DEBUG: Constructed contentParts for /extract-keywords:', JSON.stringify(contentParts, null, 2));
 
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
@@ -688,9 +671,10 @@ app.post('/extract-keywords', async (req, res) => {
         res.json(newResults);
     } catch (error) {
         console.error('Error in /extract-keywords endpoint during Promise.allSettled:', error);
-        res.status(500).json({ error: 'Failed to extract keywords from models.' });
+        res.status(500).json({ error: 'Failed to extract keywords.' });
     }
 });
+
 
 // Start the server
 app.listen(port, () => {

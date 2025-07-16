@@ -1,224 +1,3 @@
-// // gemini-backend/server.js
-// require('dotenv').config(); // Load environment variables from .env file
-// const express = require('express');
-// const cors = require('cors');
-// const { GoogleGenerativeAI } = require('@google/generative-ai');
-
-// const app = express();
-// const port = process.env.PORT || 3001; // Choose a different port than your React app (e.g., 3001)
-
-// // Middleware
-// // Configure CORS to only allow requests from your frontend's origin
-// // Replace 'http://localhost:5173' with your actual frontend URL in production
-// app.use(cors({
-//     origin: ' https://minwebfront-343717256329.us-central1.run.app' // This should be your React app's development URL (Vite default is 5173)
-// }));
-// app.use(express.json()); // Parse JSON request bodies
-
-
-
-// // Initialize Gemini models with API key from environment variable
-// const API_KEY = process.env.GEMINI_API_KEY;
-// if (!API_KEY) {
-//     console.error("GEMINI_API_KEY not found in environment variables. Please set it in your .env file.");
-//     process.exit(1); // Exit if API key is not found
-// }
-
-// const genAI = new GoogleGenerativeAI(API_KEY);
-
-// // Define your three Gemini models with CURRENT, STABLE model IDs
-// const MODELS = {
-//     // Replaced 'gemini-1.5-flash-preview-04-17' with the stable 'gemini-2.5-flash'
-//     'gemini-2.5-flash': genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }),
-    
-//     // Replaced 'gemini-pro' with the stable 'gemini-2.5-pro' for general purpose
-//     'gemini-2.5-pro': genAI.getGenerativeModel({ model: 'gemini-2.5-pro' }),
-
-//     // For your third model, choose another current, stable one based on your need:
-//     'gemini-1.5-flash': genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }),
-    
-// };
-
-
-
-// /**
-//  * Generic function to call the Gemini API on the backend.
-//  * @param {string} modelName - The name of the model to use.
-//  * @param {string} textPrompt - The prompt text for the LLM.
-//  * @returns {Promise<string>} The generated text or an error message.
-//  */
-// const callGeminiApiBackend = async (modelName, textPrompt) => {
-//     const modelInstance = MODELS[modelName];
-//     if (!modelInstance) {
-//         return `Error: Model '${modelName}' is not configured on the backend.`;
-//     }
-
-//     try {
-//         const result = await modelInstance.generateContent(textPrompt);
-//         const response = await result.response;
-//         return response.text();
-//     } catch (error) {
-//         console.error(`Error calling Gemini API for ${modelName}:`, error);
-//         // More granular error handling for specific API errors could be added
-//         if (error.response && error.response.error && error.response.error.message) {
-//             return `API Error from ${modelName}: ${error.response.error.message}`;
-//         }
-//         return `Error calling ${modelName} API: ${error.message || 'Unknown error'}`;
-//     }
-// };
-
-// // Main endpoint to handle requests for multiple models
-// app.post('/generate-responses', async (req, res) => {
-//     const { prompt, selectedModels } = req.body;
-
-//     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-//         return res.status(400).json({ error: 'Valid prompt is required.' });
-//     }
-//     if (!selectedModels || typeof selectedModels !== 'object') {
-//         return res.status(400).json({ error: 'Selected models are required.' });
-//     }
-
-//     const newResults = {};
-//     const promises = [];
-
-//     for (const modelName of Object.keys(selectedModels)) {
-//         if (selectedModels[modelName] && MODELS[modelName]) { // Check if selected AND configured
-//             promises.push(
-//                 callGeminiApiBackend(modelName, prompt)
-//                     .then(output => newResults[modelName] = output)
-//             );
-//         } else if (selectedModels[modelName] && !MODELS[modelName]) {
-//              // If selected on frontend but not configured on backend
-//             newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
-//         }
-//     }
-
-//     try {
-//         await Promise.allSettled(promises);
-//         res.json(newResults);
-//     } catch (error) {
-//         console.error('Error in /generate-responses endpoint:', error);
-//         res.status(500).json({ error: 'Failed to generate responses from models.' });
-//     }
-// });
-
-
-
-
-
-// app.post('/summarize', async (req, res) => {
-//     const { prompt, selectedModels } = req.body;
-
-//     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-//         return res.status(400).json({ error: 'Valid prompt is required.' });
-//     }
-//     if (!selectedModels || typeof selectedModels !== 'object') {
-//         return res.status(400).json({ error: 'Selected models are required.' });
-//     }
-
-//     const promptForSummary = `Summarize the following text concisely and accurately:\n\n${prompt}`;
-
-//     const newResults = {};
-//     const promises = [];
-
-//     for (const modelName of Object.keys(selectedModels)) {
-//         if (selectedModels[modelName] && MODELS[modelName]) { // Check if selected AND configured
-//             promises.push(
-//                 callGeminiApiBackend(modelName,promptForSummary)
-//                     .then(output => newResults[modelName] = output)
-//             );
-//         } else if (selectedModels[modelName] && !MODELS[modelName]) {
-//              // If selected on frontend but not configured on backend
-//             newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
-//         }
-//     }
-
-//     try {
-//         await Promise.allSettled(promises);
-//         res.json(newResults);
-//     } catch (error) {
-//         console.error('Error in /generate-responses endpoint:', error);
-//         res.status(500).json({ error: 'Failed to generate responses from models.' });
-//     }
-// });
-
-
-// app.post('/expand', async (req, res) => {
-//     const { prompt, selectedModels } = req.body;
-
-//     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-//         return res.status(400).json({ error: 'Valid prompt is required.' });
-//     }
-//     if (!selectedModels || typeof selectedModels !== 'object') {
-//         return res.status(400).json({ error: 'Selected models are required.' });
-//     }
-
-//     const promptForExpansion = `Continue writing the following text, expanding on the ideas present. Make it at least 200 words long and maintain the original style and tone:\n\n${prompt}`;
-//     const newResults = {};
-//     const promises = [];
-
-//     for (const modelName of Object.keys(selectedModels)) {
-//         if (selectedModels[modelName] && MODELS[modelName]) { // Check if selected AND configured
-//             promises.push(
-//                 callGeminiApiBackend(modelName,promptForExpansion)
-//                     .then(output => newResults[modelName] = output)
-//             );
-//         } else if (selectedModels[modelName] && !MODELS[modelName]) {
-//              // If selected on frontend but not configured on backend
-//             newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
-//         }
-//     }
-
-//     try {
-//         await Promise.allSettled(promises);
-//         res.json(newResults);
-//     } catch (error) {
-//         console.error('Error in /generate-responses endpoint:', error);
-//         res.status(500).json({ error: 'Failed to generate responses from models.' });
-//     }
-// });
-
-// app.post('/extract-keywords', async (req, res) => {
-//     const { prompt, selectedModels } = req.body; // <-- Added selectedModels
-
-//     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
-//         return res.status(400).json({ error: 'Text to extract keywords from is required.' });
-//     }
-//     if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) { // <-- Added validation
-//         return res.status(400).json({ error: 'At least one model must be selected for keyword extraction.' });
-//     }
-
-//     const promptForKeywords = `Extract the most important keywords and phrases from the following text. List them as comma-separated values, without additional sentences or explanations:\n\n${prompt}`;
-
-//     const newResults = {};
-//     const promises = [];
-
-//     for (const modelName of Object.keys(selectedModels)) {
-//         if (selectedModels[modelName] && MODELS[modelName]) { // Check if selected AND configured
-//             promises.push(
-//                 callGeminiApiBackend(modelName, promptForKeywords)
-//                     .then(output => newResults[modelName] = output)
-//                     .catch(err => newResults[modelName] = `API Error for ${modelName}: ${err.message || 'Unknown error'}`) // Added error handling
-//             );
-//         } else if (selectedModels[modelName] && !MODELS[modelName]) {
-//              // If selected on frontend but not configured on backend
-//             newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
-//         }
-//     }
-
-//     try {
-//         await Promise.allSettled(promises);
-//         res.json(newResults);
-//     } catch (error) {
-//         console.error('Error in /extract-keywords endpoint:', error); // Specific endpoint error log
-//         res.status(500).json({ error: 'Failed to extract keywords from models.' });
-//     }
-// });
-
-// // Start the server
-// app.listen(port, () => {
-//     console.log(`Backend server listening at http://localhost:${port}`);
-// });
 
 
 
@@ -535,11 +314,14 @@
 // app.listen(port, () => {
 //     console.log(`Backend server listening at http://localhost:${port}`);
 // });
-
 require('dotenv').config(); // Load environment variables from .env file
 const express = require('express');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+// --- NEW: Import Vertex AI client for Imagen 3.0 ---
+const { PredictionServiceClient } = require('@google-cloud/aiplatform');
+const { helpers } = require('@google-cloud/aiplatform/build/protos/google/cloud/aiplatform/v1beta1/PredictionService');
+// --- END NEW ---
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -555,10 +337,20 @@ app.use(express.json({ limit: '50mb' })); // Allows larger request bodies for Ba
 
 // Initialize AI models with API key from environment variable
 const API_KEY = process.env.GEMINI_API_KEY;
+// --- NEW: Add GOOGLE_CLOUD_PROJECT_ID for Imagen ---
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID; // Your Google Cloud Project ID
+// --- END NEW ---
+
 if (!API_KEY) {
     console.error("GEMINI_API_KEY not found in environment variables. Please set it in your .env file.");
     process.exit(1); // Exit if API key is not found
 }
+// --- NEW: Check for PROJECT_ID ---
+if (!PROJECT_ID) {
+    console.error("GOOGLE_CLOUD_PROJECT_ID not found in environment variables. Please set it in your .env file.");
+    process.exit(1); // Exit if Project ID is not found
+}
+// --- END NEW ---
 
 const genAI = new GoogleGenerativeAI(API_KEY); // Entry point for interacting with the Gemini API
 
@@ -569,10 +361,12 @@ const MODELS = {
     'gemini-1.5-flash': genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }),
 };
 
-// --- NEW: Initialize Imagen (image generation) model ---
-// Note: Imagen uses the 'predict' method, not 'generateContent'
-const imagenModel = genAI.getGenerativeModel({ model: 'imagen-3.0-generate-002' });
-// --- END NEW ---
+// --- MODIFIED: Initialize Imagen (image generation) model using Vertex AI SDK ---
+const clientOptions = {
+    apiEndpoint: 'us-central1-aiplatform.googleapis.com', // Use the correct region endpoint if different
+};
+const predictionClient = new PredictionServiceClient(clientOptions);
+// --- END MODIFIED ---
 
 // --- NEW HELPER FUNCTION FOR IMAGE PROCESSING ---
 /**
@@ -830,30 +624,49 @@ app.post('/generate-image', async (req, res) => {
         return res.status(400).json({ error: 'A prompt is required for image generation.' });
     }
 
+    // Define Imagen model details
+    const location = 'us-central1'; // Or your deployed region
+    const publisher = 'google';
+    const modelId = 'imagen-3.0-generate-002';
+    const endpoint = `projects/${PROJECT_ID}/locations/${location}/publishers/${publisher}/models/${modelId}`;
+
+    // Request payload for Imagen 3.0 via Vertex AI SDK
+    const instance = helpers.toValue({ prompt: prompt });
+    const parameters = helpers.toValue({ sampleCount: 1 }); // Requesting one image
+
     try {
         console.log(`Attempting to generate image for prompt: "${prompt}"`);
-        // Call the Imagen model's predict method
-        const result = await imagenModel.predict({
-            instances: { prompt: prompt },
-            parameters: { sampleCount: 1 } // Requesting one image
+        // Call the Vertex AI Prediction Service Client
+        const [response] = await predictionClient.predict({
+            endpoint,
+            instances: [instance],
+            parameters,
         });
 
-        // The result for Imagen 3.0 via predict method contains predictions array
-        if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
-            const base64Data = result.predictions[0].bytesBase64Encoded;
-            // Construct the data URL to send back to the frontend
-            const imageUrl = `data:image/png;base64,${base64Data}`;
-            console.log('Image generated successfully.');
-            res.json({ imageUrl: imageUrl });
+        if (response && response.predictions && response.predictions.length > 0) {
+            // Imagen typically returns the base64 encoded image in the 'bytesBase64Encoded' field
+            // within the value of the prediction.
+            const predictionValue = helpers.fromValue(response.predictions[0]);
+
+            if (predictionValue && predictionValue.bytesBase64Encoded) {
+                const base64Data = predictionValue.bytesBase64Encoded;
+                // Construct the data URL to send back to the frontend (assuming PNG output)
+                const imageUrl = `data:image/png;base64,${base64Data}`;
+                console.log('Image generated successfully.');
+                res.json({ imageUrl: imageUrl });
+            } else {
+                console.error('Imagen API response did not contain expected image data:', predictionValue);
+                res.status(500).json({ error: 'Image generation failed: No image data returned.' });
+            }
         } else {
-            console.error('Imagen API response did not contain expected image data:', result);
-            res.status(500).json({ error: 'Image generation failed: No image data returned.' });
+            console.error('Imagen API response did not contain predictions:', response);
+            res.status(500).json({ error: 'Image generation failed: No predictions returned.' });
         }
     } catch (error) {
         console.error('Error generating image with Imagen API:', error);
         let errorMessage = 'Failed to generate image.';
-        if (error.response && error.response.error && error.response.error.message) {
-            errorMessage = `Imagen API Error: ${error.response.error.message}`;
+        if (error.details) { // Vertex AI client errors often provide 'details'
+            errorMessage = `Imagen API Error: ${error.details}`;
         } else if (error.message) {
             errorMessage = `Error: ${error.message}`;
         }

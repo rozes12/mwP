@@ -1251,7 +1251,8 @@ app.post('/summarize', async (req, res) => {
     try {
         await Promise.allSettled(promises);
         res.json(newResults);
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Error in /summarize endpoint:', error);
         res.status(500).json({ error: 'Failed to generate summaries from models.' });
     }
@@ -1351,9 +1352,6 @@ app.post('/generate-image', async (req, res) => {
     try {
         console.log(`Attempting to generate image using Gemini 2.0 Flash for prompt: "${prompt}"`);
         
-        // Removed responseMimeType and responseSchema from generationConfig
-        // The model `gemini-2.0-flash-preview-image-generation` does not support JSON mode.
-        // It outputs TEXT and IMAGE parts directly.
         const generationConfig = {}; 
 
         const safetySettings = [
@@ -1363,8 +1361,11 @@ app.post('/generate-image', async (req, res) => {
             { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
         ];
 
+        // Modify the prompt to explicitly ask for both an image and text
+        const multimodalPrompt = `Generate an image based on the following description: "${prompt}". Also, provide a short textual description of the generated image.`;
+
         const result = await modelInstance.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            contents: [{ role: "user", parts: [{ text: multimodalPrompt }] }],
             generationConfig,
             safetySettings,
         });
@@ -1388,7 +1389,7 @@ app.post('/generate-image', async (req, res) => {
             } else {
                 console.warn('Gemini 2.0 Flash did not return an image part, or image data was invalid. It might have returned only text or blocked due to safety.');
                 const textOutput = textPart ? textPart.text : 'No image or readable text output from model.';
-                // Return 200 OK even if no image, but indicate failure in message or specific flag
+                // If no image, but response has text, log the text and return it as error message.
                 res.status(500).json({ error: `Image generation failed: ${textOutput}` });
             }
         } else {

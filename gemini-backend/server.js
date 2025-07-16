@@ -226,10 +226,10 @@
 require('dotenv').config(); // Load environment variables from .env file
 const express = require('express');
 const cors = require('cors');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');  // Imports the necessary class from the Google Generative AI client library for Node.js, which allows interaction with Gemini models.
 
 const app = express();
-const port = process.env.PORT || 8080; // Changed to 8080 for Cloud Run compatibility, or use your chosen 3001
+const port = process.env.PORT || 8080; // Changed to 8080 for Cloud Run compatibility
 
 // Middleware
 // Configure CORS to only allow requests from your frontend's origin
@@ -249,7 +249,7 @@ if (!API_KEY) {
     process.exit(1); // Exit if API key is not found
 }
 
-const genAI = new GoogleGenerativeAI(API_KEY);
+const genAI = new GoogleGenerativeAI(API_KEY); //entry point for interacting with the gemini api
 
 // Define your three Gemini models with CURRENT, STABLE model IDs
 const MODELS = {

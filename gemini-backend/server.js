@@ -1088,8 +1088,8 @@
 require('dotenv').config(); // Load environment variables from .env file
 const express = require('express');
 const cors = require('cors');
-const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require('@google/generative-ai');
-// Removed: const { PredictionServiceClient } = require('@google-cloud/aiplatform'); // No longer needed for Gemini image generation
+const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require('@google/generative-ai'); 
+// Removed 'Part' as it's not explicitly used in this cleaned version.
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -1098,58 +1098,54 @@ const port = process.env.PORT || 8080;
 app.use(cors({
     origin: 'https://minwebfront-343717256329.us-central1.run.app'
 }));
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '50mb' })); // Allows larger request bodies for Base64 images
 
 // Initialize AI models with API key from environment variable
 const API_KEY = process.env.GEMINI_API_KEY;
-// PROJECT_ID is not strictly needed for gemini-api image generation, but kept for consistency if other Vertex AI calls are added later.
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID; 
 
 if (!API_KEY) {
     console.error("GEMINI_API_KEY not found in environment variables. Please set it in your .env file.");
     process.exit(1);
 }
-// PROJECT_ID check can be optionally removed if no other Vertex AI models are used.
 if (!PROJECT_ID) {
     console.warn("GOOGLE_CLOUD_PROJECT_ID not found in environment variables. This is not critical for gemini-api image generation, but may be needed for other Vertex AI services.");
-    // Do not exit, as Gemini API can work without it.
 }
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// Define your Gemini (text/multimodal) models with CURRENT, STABLE model IDs
+// Define your Gemini models with CURRENT, STABLE model IDs
 const MODELS = {
     'gemini-2.5-flash': genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }),
     'gemini-2.5-pro': genAI.getGenerativeModel({ model: 'gemini-2.5-pro' }),
     'gemini-1.5-flash': genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }),
-    // --- NEW: Add the Gemini image generation model to the MODELS object ---
+    // Image generation model
     'gemini-2.0-flash-preview-image-generation': genAI.getGenerativeModel({ model: 'gemini-2.0-flash-preview-image-generation' }),
 };
 
-// Removed: const predictionClient = new PredictionServiceClient(clientOptions); // No longer needed
-
-
+/**
+ * Converts a Base64 data URL string into a Gemini GenerativeContentPart for image data.
+ * Expected format: "data:image/jpeg;base64,..."
+ * @param {string} imageData The Base64 data URL string from the frontend.
+ * @returns {object} A GenerativeContentPart object for an image, or null if input is invalid.
+ */
 function fileToGenerativePart(imageData) {
     if (!imageData || typeof imageData !== 'string') {
         return null;
     }
-
     const parts = imageData.split(',');
     if (parts.length !== 2) {
         console.warn('Invalid image data format. Expected a data URL with a comma.');
         return null;
     }
-
     const mimeTypePart = parts[0];
     const base64Data = parts[1];
-
     const mimeMatch = mimeTypePart.match(/^data:(.*?);base64$/);
     if (!mimeMatch || mimeMatch.length < 2) {
         console.warn('Could not extract MIME type from image data.');
         return null;
     }
     const mimeType = mimeMatch[1];
-
     return {
         inlineData: {
             data: base64Data,
@@ -1158,13 +1154,17 @@ function fileToGenerativePart(imageData) {
     };
 }
 
-
+/**
+ * Generic function to call the Gemini API on the backend for text/multimodal output.
+ * @param {string} modelName - The name of the model to use.
+ * @param {Array<object>} contentParts - An array of content parts (e.g., [{ text: "prompt" }, { inlineData: ... }]).
+ * @returns {Promise<string>} The generated text or an error message.
+ */
 const callGeminiApiBackend = async (modelName, contentParts) => {
     const modelInstance = MODELS[modelName];
     if (!modelInstance) {
         return `Error: Model '${modelName}' is not configured on the backend.`;
     }
-
     try {
         const result = await modelInstance.generateContent(contentParts);
         const response = await result.response;
@@ -1181,27 +1181,23 @@ const callGeminiApiBackend = async (modelName, contentParts) => {
 // Main endpoint to handle requests for multiple text/multimodal models
 app.post('/generate-responses', async (req, res) => {
     const { prompt, selectedModels, imageData } = req.body;
-
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
         return res.status(400).json({ error: 'Valid prompt is required.' });
     }
     if (!selectedModels || typeof selectedModels !== 'object') {
         return res.status(400).json({ error: 'Selected models are required.' });
     }
-
     const contentParts = [{ text: prompt }];
     if (imageData) {
         const imagePart = fileToGenerativePart(imageData);
         if (imagePart) {
-            contentParts.unshift(imagePart); // Add image part at the beginning
+            contentParts.unshift(imagePart);
         } else {
             return res.status(400).json({ error: 'Invalid image data provided.' });
         }
     }
-
     const newResults = {};
     const promises = [];
-
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
             promises.push(
@@ -1213,7 +1209,6 @@ app.post('/generate-responses', async (req, res) => {
             newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
         }
     }
-
     try {
         await Promise.allSettled(promises);
         res.json(newResults);
@@ -1223,17 +1218,14 @@ app.post('/generate-responses', async (req, res) => {
     }
 });
 
-
 app.post('/summarize', async (req, res) => {
     const { prompt, selectedModels, imageData } = req.body;
-
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
         return res.status(400).json({ error: 'Valid prompt is required.' });
     }
     if (!selectedModels || typeof selectedModels !== 'object') {
         return res.status(400).json({ error: 'Selected models are required.' });
     }
-
     const promptForSummary = `Summarize the following text (and/or content of the image if provided) concisely and accurately:\n\n${prompt}`;
     const contentParts = [{ text: promptForSummary }];
     if (imageData) {
@@ -1244,10 +1236,8 @@ app.post('/summarize', async (req, res) => {
             return res.status(400).json({ error: 'Invalid image data provided.' });
         }
     }
-
     const newResults = {};
     const promises = [];
-
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
             promises.push(
@@ -1259,7 +1249,6 @@ app.post('/summarize', async (req, res) => {
             newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
         }
     }
-
     try {
         await Promise.allSettled(promises);
         res.json(newResults);
@@ -1269,17 +1258,14 @@ app.post('/summarize', async (req, res) => {
     }
 });
 
-
 app.post('/expand', async (req, res) => {
     const { prompt, selectedModels, imageData } = req.body;
-
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
         return res.status(400).json({ error: 'Valid prompt is required.' });
     }
     if (!selectedModels || typeof selectedModels !== 'object') {
         return res.status(400).json({ error: 'Selected models are required.' });
     }
-
     const promptForExpansion = `Continue writing the following text (and/or based on the image if provided), expanding on the ideas present. Make it at least 200 words long and maintain the original style and tone:\n\n${prompt}`;
     const contentParts = [{ text: promptForExpansion }];
     if (imageData) {
@@ -1290,10 +1276,8 @@ app.post('/expand', async (req, res) => {
             return res.status(400).json({ error: 'Invalid image data provided.' });
         }
     }
-
     const newResults = {};
     const promises = [];
-
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
             promises.push(
@@ -1305,7 +1289,6 @@ app.post('/expand', async (req, res) => {
             newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
         }
     }
-
     try {
         await Promise.allSettled(promises);
         res.json(newResults);
@@ -1317,14 +1300,12 @@ app.post('/expand', async (req, res) => {
 
 app.post('/extract-keywords', async (req, res) => {
     const { prompt, selectedModels, imageData } = req.body;
-
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
         return res.status(400).json({ error: 'Text to extract keywords from is required.' });
     }
     if (!selectedModels || typeof selectedModels !== 'object' || Object.keys(selectedModels).length === 0) {
         return res.status(400).json({ error: 'At least one model must be selected for keyword extraction.' });
     }
-
     const promptForKeywords = `Extract the most important keywords and phrases from the following text (and/or image content if provided). List them as comma-separated values, without additional sentences or explanations:\n\n${prompt}`;
     const contentParts = [{ text: promptForKeywords }];
     if (imageData) {
@@ -1335,10 +1316,8 @@ app.post('/extract-keywords', async (req, res) => {
             return res.status(400).json({ error: 'Invalid image data provided.' });
         }
     }
-
     const newResults = {};
     const promises = [];
-
     for (const modelName of Object.keys(selectedModels)) {
         if (selectedModels[modelName] && MODELS[modelName]) {
             promises.push(
@@ -1350,7 +1329,6 @@ app.post('/extract-keywords', async (req, res) => {
             newResults[modelName] = `Model '${modelName}' selected on frontend but not configured on backend.`;
         }
     }
-
     try {
         await Promise.allSettled(promises);
         res.json(newResults);
@@ -1360,14 +1338,12 @@ app.post('/extract-keywords', async (req, res) => {
     }
 });
 
-// --- MODIFIED ENDPOINT: Image Generation with Gemini 2.0 Flash (Image Generation Preview) ---
+// Image Generation Endpoint with Gemini 2.0 Flash (Image Generation Preview)
 app.post('/generate-image', async (req, res) => {
     const { prompt } = req.body;
-
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
         return res.status(400).json({ error: 'A prompt is required for image generation.' });
     }
-
     const modelInstance = MODELS['gemini-2.0-flash-preview-image-generation'];
     if (!modelInstance) {
         return res.status(500).json({ error: 'Gemini 2.0 Flash Image Generation model is not configured on the backend.' });
@@ -1376,29 +1352,15 @@ app.post('/generate-image', async (req, res) => {
     try {
         console.log(`Attempting to generate image using Gemini 2.0 Flash for prompt: "${prompt}"`);
         
-        // Removed responseMimeType as it's not allowed for image-only output with this model.
-        // Images will be generated as parts within a text-based response.
-        const generationConfig = {
-            // responseMimeType: "image/png", // REMOVED: This is causing the 400 Bad Request
-        };
+        // No explicit responseMimeType in generationConfig, as the model requires TEXT, IMAGE modalities.
+        // The client library handles this by allowing the model to return both text and image parts.
+        const generationConfig = {}; 
 
         const safetySettings = [
-            {
-                category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-                threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-            },
-            {
-                category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-            },
-            {
-                category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-            },
-            {
-                category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-            },
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
         ];
 
         const result = await modelInstance.generateContent({
@@ -1460,7 +1422,6 @@ app.post('/generate-image', async (req, res) => {
         res.status(500).json({ error: errorMessage.trim() });
     }
 });
-// --- END MODIFIED ENDPOINT ---
 
 // Start the server
 app.listen(port, () => {

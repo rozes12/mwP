@@ -316,7 +316,6 @@
 // });
 
 
-
 // gemini-backend/server.js
 require('dotenv').config(); // Load environment variables from .env file
 const express = require('express');
@@ -333,10 +332,9 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' })); // Allows larger request bodies for Base64 images
 
-// --- UPDATED: Initialize Vertex AI models with a consistent location ---
-// Based on search, us-central1 supports all desired models (or globally)
+// --- CRITICAL UPDATE: Initialize Vertex AI with 'global' location ---
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT_ID;
-const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1' || 'global'; // STICKING TO us-central1 for now
+const LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'global'; // <--- Set to 'global' for broader access
 
 console.log(`Initializing Vertex AI with Project ID: ${PROJECT_ID} and Location: ${LOCATION}`);
 
@@ -347,13 +345,13 @@ if (!PROJECT_ID) {
 
 const vertexAI = new VertexAI({ project: PROJECT_ID, location: LOCATION });
 
-// --- UPDATED: Define your Gemini models with confirmed, specific IDs for Vertex AI ---
+// --- UPDATED: Define your Gemini models with precise IDs compatible with 'global' location ---
 const MODELS = {
-    // gemini-2.5-flash is GA and supported in us-central1, use base name
+    // gemini-2.5-flash is GA and accessible via 'global' with base name
     'gemini-2.5-flash': vertexAI.getGenerativeModel({ model: 'gemini-2.5-flash' }),
-    // gemini-2.5-pro is GA and supported in us-central1, use base name
+    // gemini-2.5-pro is GA and accessible via 'global' with base name
     'gemini-2.5-pro': vertexAI.getGenerativeModel({ model: 'gemini-2.5-pro' }),
-    // gemini-1.5-flash requires the specific version -002
+    // gemini-1.5-flash requires the specific version -002 for consistent access
     'gemini-1.5-flash': vertexAI.getGenerativeModel({ model: 'gemini-1.5-flash-002' }),
 };
 // --- END UPDATED MODEL INITIALIZATION ---

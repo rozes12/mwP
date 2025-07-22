@@ -581,6 +581,7 @@
 
 
 
+
 import React, { useState, useEffect } from 'react';
 import ChatHistory from './ChatHistory'; // Import the new component
 import './index.css';
@@ -614,7 +615,6 @@ function App() {
 
     const BACKEND_BASE_URL = 'https://minwebback-343717256329.us-central1.run.app';
 
-    // Fetch chat history on component mount
     useEffect(() => {
         fetchChats();
     }, []);
@@ -623,29 +623,24 @@ function App() {
         try {
             const response = await fetch(`${BACKEND_BASE_URL}/chats`);
             if (!response.ok) {
-                // If the server response is not ok, throw an error to be caught by the catch block
                 throw new Error(`Failed to fetch chats with status: ${response.status}`);
             }
             const data = await response.json();
-            // Ensure that what we receive is an array before setting it
             if (Array.isArray(data)) {
                 setChats(data);
             } else {
                 console.error("Received non-array response for chats:", data);
-                setChats([]); // Set to an empty array to prevent crash
+                setChats([]);
             }
         } catch (error) {
             console.error("Failed to fetch chats:", error);
-            setChats([]); // Also set to an empty array on network error
+            setChats([]);
         }
     };
 
     const handleCreateNewChat = () => {
         setSelectedChatId(null);
-        setPrompt('');
-        setResults({});
-        setSelectedImage(null);
-        setImageData(null);
+        handleClearAll();
     };
 
     const handleSelectChat = async (chatId) => {
@@ -655,16 +650,26 @@ function App() {
             setSelectedChatId(chatId);
             setPrompt(data.prompt);
             setResults(data.results);
-            // Note: Image data is not re-loaded for simplicity
             setSelectedImage(null);
             setImageData(null);
-            setIsFlipped(false); // Ensure the text/vision side is active
+            setIsFlipped(false);
         } catch (error) {
             console.error("Failed to fetch chat details:", error);
         }
     };
-
+    
+    const handleClearAll = () => {
+        setPrompt('');
+        setResults({});
+        setSelectedImage(null);
+        setImageData(null);
+        setImageGenPrompt('');
+        setGeneratedImageUrl(null);
+        setImageGenLoading(false);
+    };
+    
     const callBackendApi = async (endpoint, payload) => {
+        // This function will be updated later with an auth token
         try {
             const response = await fetch(`${BACKEND_BASE_URL}${endpoint}`, {
                 method: 'POST',
@@ -688,10 +693,8 @@ function App() {
             setResults({ error: 'Please enter a prompt.' });
             return;
         }
-
         setLoading(true);
         setResults({});
-
         try {
             const responseResults = await callBackendApi('/generate-responses', { prompt, selectedModels, imageData });
             setResults(responseResults);
@@ -703,7 +706,7 @@ function App() {
             });
             const newChat = await newChatResponse.json();
             
-            setChats(prevChats => [newChat, ...prevChats]);
+            setChats(prevChats => [newChat, ...prevChats.filter(c => c.id !== newChat.id)]);
             setSelectedChatId(newChat.id);
 
         } catch (error) {
@@ -729,15 +732,6 @@ function App() {
             setSelectedImage(null);
             setImageData(null);
         }
-    };
-    const handleClearAll = () => {
-        setPrompt('');
-        setResults({});
-        setSelectedImage(null);
-        setImageData(null);
-        setImageGenPrompt('');
-        setGeneratedImageUrl(null);
-        setImageGenLoading(false);
     };
     const toggleFlip = () => {
         setIsFlipped(prev => !prev);
@@ -776,19 +770,108 @@ function App() {
                         </button>
                     </div>
 
-                    <div className={`relative w-full h-auto min-h-[80vh] transition-transform duration-700 ease-in-out preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+                    <div className={`relative w-full h-auto min-h-[50vh] transition-transform duration-700 ease-in-out preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
                         {/* Front Side: Text AI Tools */}
                         <div className={`absolute w-full h-full backface-hidden p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20 ${isFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'}`}>
-                           {/* ... Paste your existing JSX for the Text AI side here ... */}
+                            {!isFlipped && (
+                            <>
+                                <div className="mb-6">
+                                    <label htmlFor="prompt-input" className="block text-lg font-medium text-light-text mb-2">
+                                        Type your wildest ideas:
+                                    </label>
+                                    <textarea
+                                        id="prompt-input"
+                                        rows="6"
+                                        placeholder="e.g., Describe a futuristic city powered by sentient plants..."
+                                        value={prompt}
+                                        onChange={handlePromptChange}
+                                        className="w-full p-4 border border-funky-purple-300 rounded-lg shadow-inner bg-dark-background/50 text-light-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-funky-cyan transition-all duration-300 resize-y"
+                                    ></textarea>
+                                </div>
+
+                                <div className="mb-4">
+                                    <label htmlFor="image-upload" className="block text-funky-cyan text-lg font-medium mb-2">
+                                        Upload Image (Optional for Text AI):
+                                    </label>
+                                    <input
+                                        type="file"
+                                        id="image-upload"
+                                        accept="image/*"
+                                        onChange={handleImageChange}
+                                        className="block w-full text-light-text
+                                                   file:mr-4 file:py-2 file:px-4
+                                                   file:rounded-full file:border-0
+                                                   file:text-sm file:font-semibold
+                                                   file:bg-funky-purple file:text-white
+                                                   hover:file:bg-funky-pink hover:file:cursor-pointer
+                                                   transition-colors duration-200"
+                                    />
+                                    {selectedImage && (
+                                        <p className="text-sm text-gray-400 mt-2">
+                                            Selected: {selectedImage.name} ({Math.round(selectedImage.size / 1024)} KB)
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="mb-8">
+                                    <label className="block text-lg font-medium text-light-text mb-3">
+                                        Choose your AI companions:
+                                    </label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {Object.keys(selectedModels).map(modelName => (
+                                            <div key={modelName} className="flex items-center p-3 rounded-md bg-dark-background/70 border border-funky-orange/20 shadow-sm cursor-pointer hover:bg-dark-background/90 transition-all duration-200">
+                                                <input
+                                                    type="checkbox"
+                                                    id={modelName}
+                                                    checked={selectedModels[modelName]}
+                                                    onChange={() => handleModelToggle(modelName)}
+                                                    className="h-5 w-5 text-funky-cyan rounded border-gray-600 focus:ring-funky-cyan bg-gray-700 cursor-pointer"
+                                                />
+                                                <label htmlFor={modelName} className="ml-3 block text-base font-medium text-light-text cursor-pointer">
+                                                    {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                    {selectedModels[modelName] && <span className="ml-1 text-xs text-funky-cyan">(Active)</span>}
+                                                </label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+                                    <button
+                                        onClick={runPrompt}
+                                        disabled={loading}
+                                        className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+                                                   bg-gradient-to-r from-funky-purple to-funky-pink shadow-lg
+                                                   hover:from-funky-pink hover:to-funky-purple
+                                                   transition-all duration-300 ease-in-out transform hover:-translate-y-1
+                                                   disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                    >
+                                        {loading ? 'Thinking...' : 'Unleash Multiverse Thoughts'}
+                                    </button>
+                                    {/* Other buttons can be re-enabled and hooked up to save history later */}
+                                </div>
+                                <div className="mt-6">
+                                    <button
+                                        onClick={handleClearAll}
+                                        className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
+                                                   bg-gray-700 shadow-lg border border-gray-600
+                                                   hover:bg-gray-600 hover:border-gray-500
+                                                   transition-all duration-300 ease-in-out transform hover:-translate-y-1"
+                                    >
+                                        <i className="fas fa-redo-alt mr-2"></i> Clear Current
+                                    </button>
+                                </div>
+                            </>
+                            )}
                         </div>
 
                         {/* Back Side: Imagen Generator */}
                         <div className={`absolute w-full h-full backface-hidden rotate-y-180 p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20 ${!isFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'}`}>
-                           {/* ... Paste your existing JSX for the Imagen Generator side here ... */}
+                            {/* ... Your Imagen Generator JSX ... */}
                         </div>
                     </div>
 
-                    {/* Loading Indicator */}
+                    {/* Loading and Results Display */}
                     {loading && !isFlipped && (
                         <div className="flex flex-col items-center justify-center p-12 bg-dark-background/70 rounded-xl shadow-xl text-funky-cyan">
                             <div className="animate-spin-slow border-t-4 border-b-4 border-funky-pink w-16 h-16 rounded-full mb-4"></div>
@@ -796,10 +879,18 @@ function App() {
                         </div>
                     )}
                     
-                    {/* Results Display */}
                     {Object.keys(results).length > 0 && !isFlipped && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                             {/* ... Paste your existing JSX for displaying results here ... */}
+                             {Object.entries(results).map(([key, value]) => (
+                                 <div key={key} className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20">
+                                     <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
+                                         {key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Says:
+                                     </h3>
+                                     <div className="max-h-60 overflow-y-auto p-4 bg-dark-background/40 rounded-md border border-gray-700 text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
+                                         <p className="text-light-text text-lg leading-relaxed">{value}</p>
+                                     </div>
+                                 </div>
+                             ))}
                         </div>
                     )}
                 </div>

@@ -2,7 +2,7 @@
 
 
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ChatHistory from './ChatHistory'; // 
 import './index.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';

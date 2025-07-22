@@ -322,11 +322,15 @@
 const express = require('express');
 const { VertexAI } = require('@google-cloud/vertexai');
 const { GoogleAuth } = require('google-auth-library'); // Import GoogleAuth
+const { Firestore } = require('@google-cloud/firestore'); 
 const cors = require('cors');
 require('dotenv').config(); // Load environment variables from .env file
 
 const app = express();
 const port = process.env.PORT || 8080; // Use PORT from environment or default to 8080
+
+// Initialize Firestore
+const firestore = new Firestore();
 
 // Initialize Vertex AI with project and location from environment variables
 // IMPORTANT: Using GOOGLE_CLOUD_PROJECT as it's the standard env var for project ID
@@ -375,6 +379,64 @@ function fileToGenerativePart(base64EncodedImage, mimeType = 'image/jpeg') {
 // --- Middleware ---
 app.use(cors()); // Enable CORS for all origins (adjust for production)
 app.use(express.json({ limit: '50mb' })); // Parse JSON bodies, increased limit for images
+
+// --- Chat History Routes ---
+
+// NOTE: For now, we'll use a hardcoded user ID.
+// This will be replaced with real user IDs after we add authentication.
+const TEMP_USER_ID = "temp_user_123";
+
+// GET all chats for the temporary user
+app.get('/chats', async (req, res) => {
+    try {
+        const chatsRef = firestore.collection('users').doc(TEMP_USER_ID).collection('chats');
+        const snapshot = await chatsRef.orderBy('createdAt', 'desc').get();
+        if (snapshot.empty) {
+            return res.json([]);
+        }
+        const chats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        res.json(chats);
+    } catch (error) {
+        console.error('Error fetching chats:', error);
+        res.status(500).json({ error: 'Could not fetch chats.' });
+    }
+});
+
+// POST a new chat
+app.post('/chats', async (req, res) => {
+    try {
+        const { title, prompt, results } = req.body;
+        const chatsRef = firestore.collection('users').doc(TEMP_USER_ID).collection('chats');
+        const newChat = {
+            title: title || prompt.substring(0, 30) || 'New Chat',
+            createdAt: new Date().toISOString(),
+            prompt,
+            results
+        };
+        const docRef = await chatsRef.add(newChat);
+        res.status(201).json({ id: docRef.id, ...newChat });
+    } catch (error) {
+        console.error('Error creating new chat:', error);
+        res.status(500).json({ error: 'Could not create a new chat.' });
+    }
+});
+
+// GET a single chat's details
+app.get('/chats/:chatId', async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const docRef = firestore.collection('users').doc(TEMP_USER_ID).collection('chats').doc(chatId);
+        const doc = await docRef.get();
+        if (!doc.exists) {
+            return res.status(404).json({ error: 'Chat not found.' });
+        }
+        res.json({ id: doc.id, ...doc.data() });
+    } catch (error) {
+        console.error('Error fetching chat:', error);
+        res.status(500).json({ error: 'Could not fetch chat details.' });
+    }
+});
+
 
 // --- Utility function to call Gemini API (for text/vision) ---
 async function callGeminiApiBackend(modelName, contentParts) {

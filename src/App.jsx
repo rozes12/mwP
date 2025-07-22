@@ -583,7 +583,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import ChatHistory from './ChatHistory'; // Import the new component
+import ChatHistory from './ChatHistory';
 import './index.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
@@ -740,11 +740,27 @@ function App() {
     const summarizeText = async () => { /* ... existing summarizeText logic ... */ };
     const expandText = async () => { /* ... existing expandText logic ... */ };
     const extractKeywords = async () => { /* ... existing extractKeywords logic ... */ };
-    const generateImageViaBackend = async () => { /* ... existing generateImageViaBackend logic ... */ };
+    const generateImageViaBackend = async () => {
+        if (!imageGenPrompt.trim()) {
+            setResults({ error: 'Please enter a prompt for image generation.' });
+            return;
+        }
+        setImageGenLoading(true);
+        setGeneratedImageUrl(null);
+        setResults({});
+        try {
+            const data = await callBackendApi('/generate-image', { prompt: imageGenPrompt, modelType: selectedImagenModel });
+            setGeneratedImageUrl(data.imageUrl);
+        } catch (error) {
+            setResults({ error: error.message });
+        } finally {
+            setImageGenLoading(false);
+        }
+    };
 
 
     return (
-        <div className="flex min-h-screen bg-retro-swirl-animated bg-repeat bg-fixed bg-cover text-light-text font-sans">
+        <div className="flex min-h-screen bg-retro-swirl-animated bg-repeat bg-fixed bg-cover text-light-text font-sans overflow-hidden">
             <ChatHistory
                 chats={chats}
                 onSelectChat={handleSelectChat}
@@ -752,147 +768,138 @@ function App() {
                 onCreateNewChat={handleCreateNewChat}
             />
             <div className="flex-1 flex flex-col items-center py-8 px-4 sm:px-6 lg:px-8 overflow-y-auto">
-                <div className="max-w-4xl w-full space-y-8 p-6 bg-dark-background/80 backdrop-blur-sm rounded-xl shadow-2xl border border-funky-purple/30">
+                <div className="max-w-4xl w-full">
+                    <div className="space-y-8 p-6 bg-dark-background/80 backdrop-blur-sm rounded-xl shadow-2xl border border-funky-purple/30">
+                        <h1 className="text-4xl sm:text-5xl font-extrabold text-center text-funky-cyan mb-8 tracking-wide drop-shadow-lg">
+                            {isFlipped ? '🖼️ Imagen Generator 🚀' : '✨ Gemini Fun-House AI ✨'}
+                        </h1>
 
-                    <h1 className="text-4xl sm:text-5xl font-extrabold text-center text-funky-cyan mb-8 tracking-wide drop-shadow-lg">
-                        {isFlipped ? '🖼️ Imagen Generator 🚀' : '✨ Gemini Fun-House AI ✨'}
-                    </h1>
+                        <div className="flex justify-center mb-6">
+                            <button
+                                onClick={toggleFlip}
+                                className="py-2 px-4 rounded-lg font-bold text-lg text-white
+                                        bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg
+                                        hover:from-indigo-600 hover:to-purple-600
+                                        transition-all duration-300 ease-in-out transform hover:-translate-y-1"
+                            >
+                                {isFlipped ? 'Switch to Text AI Tools' : 'Switch to Image Generator'}
+                            </button>
+                        </div>
 
-                    <div className="flex justify-center mb-6">
-                        <button
-                            onClick={toggleFlip}
-                            className="py-2 px-4 rounded-lg font-bold text-lg text-white
-                                       bg-gradient-to-r from-purple-600 to-indigo-600 shadow-lg
-                                       hover:from-indigo-600 hover:to-purple-600
-                                       transition-all duration-300 ease-in-out transform hover:-translate-y-1"
-                        >
-                            {isFlipped ? 'Switch to Text AI Tools' : 'Switch to Image Generator'}
-                        </button>
-                    </div>
-
-                    <div className={`relative w-full h-auto min-h-[50vh] transition-transform duration-700 ease-in-out preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
-                        {/* Front Side: Text AI Tools */}
-                        <div className={`absolute w-full h-full backface-hidden p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20 ${isFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'}`}>
+                        <div className={`relative w-full h-auto min-h-[50vh] transition-transform duration-700 ease-in-out preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+                            {/* Front Side: Text AI Tools */}
+                            <div className={`absolute w-full h-full backface-hidden p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20 ${isFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'}`}>
                             {!isFlipped && (
-                            <>
-                                <div className="mb-6">
-                                    <label htmlFor="prompt-input" className="block text-lg font-medium text-light-text mb-2">
-                                        Type your wildest ideas:
-                                    </label>
-                                    <textarea
-                                        id="prompt-input"
-                                        rows="6"
-                                        placeholder="e.g., Describe a futuristic city powered by sentient plants..."
-                                        value={prompt}
-                                        onChange={handlePromptChange}
-                                        className="w-full p-4 border border-funky-purple-300 rounded-lg shadow-inner bg-dark-background/50 text-light-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-funky-cyan transition-all duration-300 resize-y"
-                                    ></textarea>
-                                </div>
-
-                                <div className="mb-4">
-                                    <label htmlFor="image-upload" className="block text-funky-cyan text-lg font-medium mb-2">
-                                        Upload Image (Optional for Text AI):
-                                    </label>
-                                    <input
-                                        type="file"
-                                        id="image-upload"
-                                        accept="image/*"
-                                        onChange={handleImageChange}
-                                        className="block w-full text-light-text
-                                                   file:mr-4 file:py-2 file:px-4
-                                                   file:rounded-full file:border-0
-                                                   file:text-sm file:font-semibold
-                                                   file:bg-funky-purple file:text-white
-                                                   hover:file:bg-funky-pink hover:file:cursor-pointer
-                                                   transition-colors duration-200"
-                                    />
-                                    {selectedImage && (
-                                        <p className="text-sm text-gray-400 mt-2">
-                                            Selected: {selectedImage.name} ({Math.round(selectedImage.size / 1024)} KB)
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div className="mb-8">
-                                    <label className="block text-lg font-medium text-light-text mb-3">
-                                        Choose your AI companions:
-                                    </label>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {Object.keys(selectedModels).map(modelName => (
-                                            <div key={modelName} className="flex items-center p-3 rounded-md bg-dark-background/70 border border-funky-orange/20 shadow-sm cursor-pointer hover:bg-dark-background/90 transition-all duration-200">
-                                                <input
-                                                    type="checkbox"
-                                                    id={modelName}
-                                                    checked={selectedModels[modelName]}
-                                                    onChange={() => handleModelToggle(modelName)}
-                                                    className="h-5 w-5 text-funky-cyan rounded border-gray-600 focus:ring-funky-cyan bg-gray-700 cursor-pointer"
-                                                />
-                                                <label htmlFor={modelName} className="ml-3 block text-base font-medium text-light-text cursor-pointer">
-                                                    {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                                    {selectedModels[modelName] && <span className="ml-1 text-xs text-funky-cyan">(Active)</span>}
-                                                </label>
-                                            </div>
-                                        ))}
+                                <>
+                                    <div className="mb-6">
+                                        <label htmlFor="prompt-input" className="block text-lg font-medium text-light-text mb-2">
+                                            Type your wildest ideas:
+                                        </label>
+                                        <textarea
+                                            id="prompt-input"
+                                            rows="6"
+                                            placeholder="e.g., Describe a futuristic city powered by sentient plants..."
+                                            value={prompt}
+                                            onChange={handlePromptChange}
+                                            className="w-full p-4 border border-funky-purple-300 rounded-lg shadow-inner bg-dark-background/50 text-light-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-funky-cyan transition-all duration-300 resize-y"
+                                        ></textarea>
                                     </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-                                    <button
-                                        onClick={runPrompt}
-                                        disabled={loading}
-                                        className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
-                                                   bg-gradient-to-r from-funky-purple to-funky-pink shadow-lg
-                                                   hover:from-funky-pink hover:to-funky-purple
-                                                   transition-all duration-300 ease-in-out transform hover:-translate-y-1
-                                                   disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                                    >
-                                        {loading ? 'Thinking...' : 'Unleash Multiverse Thoughts'}
-                                    </button>
-                                    {/* Other buttons can be re-enabled and hooked up to save history later */}
-                                </div>
-                                <div className="mt-6">
-                                    <button
-                                        onClick={handleClearAll}
-                                        className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white
-                                                   bg-gray-700 shadow-lg border border-gray-600
-                                                   hover:bg-gray-600 hover:border-gray-500
-                                                   transition-all duration-300 ease-in-out transform hover:-translate-y-1"
-                                    >
-                                        <i className="fas fa-redo-alt mr-2"></i> Clear Current
-                                    </button>
-                                </div>
-                            </>
+                                    <div className="mb-4">
+                                        <label htmlFor="image-upload" className="block text-funky-cyan text-lg font-medium mb-2">
+                                            Upload Image (Optional for Text AI):
+                                        </label>
+                                        <input type="file" id="image-upload" accept="image/*" onChange={handleImageChange}
+                                            className="block w-full text-light-text file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-funky-purple file:text-white hover:file:bg-funky-pink hover:file:cursor-pointer transition-colors duration-200"
+                                        />
+                                        {selectedImage && (<p className="text-sm text-gray-400 mt-2">Selected: {selectedImage.name} ({Math.round(selectedImage.size / 1024)} KB)</p>)}
+                                    </div>
+                                    <div className="mb-8">
+                                        <label className="block text-lg font-medium text-light-text mb-3">
+                                            Choose your AI companions:
+                                        </label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {Object.keys(selectedModels).map(modelName => (
+                                                <div key={modelName} className="flex items-center p-3 rounded-md bg-dark-background/70 border border-funky-orange/20 shadow-sm cursor-pointer hover:bg-dark-background/90 transition-all duration-200">
+                                                    <input type="checkbox" id={modelName} checked={selectedModels[modelName]} onChange={() => handleModelToggle(modelName)}
+                                                        className="h-5 w-5 text-funky-cyan rounded border-gray-600 focus:ring-funky-cyan bg-gray-700 cursor-pointer"
+                                                    />
+                                                    <label htmlFor={modelName} className="ml-3 block text-base font-medium text-light-text cursor-pointer">
+                                                        {modelName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                        {selectedModels[modelName] && <span className="ml-1 text-xs text-funky-cyan">(Active)</span>}
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+                                        <button onClick={runPrompt} disabled={loading} className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white bg-gradient-to-r from-funky-purple to-funky-pink shadow-lg hover:from-funky-pink hover:to-funky-purple transition-all duration-300 ease-in-out transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                                            {loading ? 'Thinking...' : 'Unleash Multiverse Thoughts'}
+                                        </button>
+                                        {/* Other buttons have been omitted for brevity, but you can add them back here */}
+                                    </div>
+                                </>
                             )}
-                        </div>
+                            </div>
 
-                        {/* Back Side: Imagen Generator */}
-                        <div className={`absolute w-full h-full backface-hidden rotate-y-180 p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20 ${!isFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'}`}>
-                            {/* ... Your Imagen Generator JSX ... */}
+                            {/* Back Side: Imagen Generator */}
+                            <div className={`absolute w-full h-full backface-hidden rotate-y-180 p-6 md:p-8 bg-dark-background/60 rounded-lg shadow-xl border border-funky-pink/20 ${!isFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'}`}>
+                            {isFlipped && (
+                                <>
+                                    <div className="mb-6">
+                                        <label htmlFor="image-gen-prompt-input" className="block text-lg font-medium text-light-text mb-2">
+                                            Describe the image you want to conjure:
+                                        </label>
+                                        <textarea id="image-gen-prompt-input" rows="6" placeholder="e.g., A surreal landscape where clocks melt into trees, in the style of Salvador Dalí." value={imageGenPrompt} onChange={handleImageGenPromptChange}
+                                            className="w-full p-4 border border-funky-purple-300 rounded-lg shadow-inner bg-dark-background/50 text-light-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-funky-cyan transition-all duration-300 resize-y"
+                                        ></textarea>
+                                    </div>
+                                    <button onClick={generateImageViaBackend} disabled={imageGenLoading} className="w-full py-3 px-6 rounded-lg font-bold text-lg text-white bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg hover:from-cyan-500 hover:to-teal-500 transition-all duration-300 ease-in-out transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none mb-4">
+                                        {imageGenLoading ? 'Forging Pixels...' : '✨ Generate Image'}
+                                    </button>
+                                </>
+                            )}
+                            </div>
                         </div>
                     </div>
-
-                    {/* Loading and Results Display */}
-                    {loading && !isFlipped && (
-                        <div className="flex flex-col items-center justify-center p-12 bg-dark-background/70 rounded-xl shadow-xl text-funky-cyan">
-                            <div className="animate-spin-slow border-t-4 border-b-4 border-funky-pink w-16 h-16 rounded-full mb-4"></div>
-                            <p className="text-xl font-semibold animate-pulse">Summoning cosmic wisdom...</p>
-                        </div>
-                    )}
                     
-                    {Object.keys(results).length > 0 && !isFlipped && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                             {Object.entries(results).map(([key, value]) => (
-                                 <div key={key} className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20">
-                                     <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
-                                         {key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Says:
-                                     </h3>
-                                     <div className="max-h-60 overflow-y-auto p-4 bg-dark-background/40 rounded-md border border-gray-700 text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
-                                         <p className="text-light-text text-lg leading-relaxed">{value}</p>
-                                     </div>
-                                 </div>
-                             ))}
-                        </div>
-                    )}
+                    <div className="space-y-4">
+                        {loading && !isFlipped && (
+                            <div className="flex flex-col items-center justify-center p-12 bg-dark-background/70 rounded-xl shadow-xl text-funky-cyan">
+                                <div className="animate-spin-slow border-t-4 border-b-4 border-funky-pink w-16 h-16 rounded-full mb-4"></div>
+                                <p className="text-xl font-semibold animate-pulse">Summoning cosmic wisdom...</p>
+                            </div>
+                        )}
+                        {imageGenLoading && isFlipped && (
+                            <div className="flex flex-col items-center justify-center p-12 bg-dark-background/70 rounded-xl shadow-xl text-funky-cyan mt-8">
+                                <div className="animate-spin-slow border-t-4 border-b-4 border-funky-pink w-16 h-16 rounded-full mb-4"></div>
+                                <p className="text-xl font-semibold animate-pulse">Crafting your masterpiece...</p>
+                            </div>
+                        )}
+                        {generatedImageUrl && isFlipped && (
+                             <div className="mt-8 p-4 bg-dark-background/40 rounded-lg border border-funky-cyan/30 shadow-inner flex flex-col items-center">
+                                <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50 w-full text-center">
+                                    Your Creation:
+                                </h3>
+                                <img src={generatedImageUrl} alt="Generated by AI" className="max-w-full h-auto rounded-lg shadow-md border border-gray-600" />
+                                <p className="text-sm text-gray-400 mt-4 text-center">Prompt: "{imageGenPrompt}"</p>
+                            </div>
+                        )}
+
+                        {Object.keys(results).length > 0 && !isFlipped && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                                {Object.entries(results).map(([key, value]) => (
+                                    <div key={key} className="p-6 rounded-lg shadow-xl bg-dark-background/60 border border-funky-cyan/20">
+                                        <h3 className="text-2xl font-bold text-funky-orange mb-4 pb-2 border-b-2 border-funky-orange/50">
+                                            {key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Says:
+                                        </h3>
+                                        <div className="max-h-60 overflow-y-auto p-4 bg-dark-background/40 rounded-md border border-gray-700 text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
+                                            <p className="text-light-text text-lg leading-relaxed">{value}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
